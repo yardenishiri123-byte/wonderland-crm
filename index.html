@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="פרויקטים">
+<meta name="theme-color" content="#FAF8F4">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<meta http-equiv="Pragma" content="no-cache">
+<meta http-equiv="Expires" content="0">
+<title>💼 ניהול פרויקטים</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+:root{
+  --bg:#FAF8F4;--surface:#F2EDE5;--surface2:#E9E2D7;
+  --border:#DDD5C7;--text:#2A2520;--muted:#8A7E74;--white:#FFFFFF;
+  --green:#5E9464;--green-bg:#E2F0E3;
+  --amber:#A07230;--amber-bg:#F5E8CE;
+  --red:#A84848;--red-bg:#F5DEDE;
+  --blue:#4268A0;--blue-bg:#D8E5F5;
+  --bordeaux:#7D2442;--bordeaux-bg:#F7E5EB;
+  --purple:#6B4FA0;--purple-bg:#EDE6F7;
+  --r:12px;--rs:8px;
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;direction:rtl;font-size:15px}
+
+/* GATE */
+.gate{position:fixed;inset:0;background:var(--bg);z-index:999;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:30px}
+.gate.hidden{display:none}
+.gate-logo{font-size:42px;margin-bottom:10px}
+.gate-title{font-size:20px;font-weight:700;margin-bottom:6px}
+.gate-sub{font-size:13px;color:var(--muted);margin-bottom:32px}
+.gate-input{width:100%;max-width:280px;background:var(--surface);border:1.5px solid var(--border);border-radius:var(--rs);padding:14px 16px;font-size:22px;font-weight:600;color:var(--text);font-family:inherit;text-align:center;letter-spacing:8px;-webkit-appearance:none;outline:none;transition:border-color .15s}
+.gate-input:focus{border-color:var(--text);background:var(--white)}
+.gate-btn{width:100%;max-width:280px;background:var(--text);color:var(--bg);border:none;border-radius:var(--rs);padding:14px;font-size:16px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:12px}
+.gate-err{font-size:13px;color:var(--red);margin-top:10px;min-height:18px;text-align:center}
+
+/* LOADING OVERLAY */
+.loading-screen{position:fixed;inset:0;background:var(--bg);z-index:50;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px}
+.loading-screen.hidden{display:none}
+.spinner{width:36px;height:36px;border:3px solid var(--border);border-top-color:var(--bordeaux);border-radius:50%;animation:spin .8s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.loading-text{font-size:14px;color:var(--muted)}
+
+/* HEADER */
+.header{background:var(--bg);border-bottom:1px solid var(--border);padding:12px 18px;position:sticky;top:0;z-index:20;display:flex;align-items:center;justify-content:space-between}
+.header-left h1{font-size:17px;font-weight:600;letter-spacing:-0.3px}
+.header-left span{font-size:12px;color:var(--muted);display:block;margin-top:1px}
+.header-right{display:flex;align-items:center;gap:8px}
+.btn-export{background:transparent;border:1px solid var(--border);border-radius:var(--rs);padding:6px 11px;font-size:12px;color:var(--muted);cursor:pointer;font-family:inherit}
+.btn-export:active{opacity:.7}
+
+/* SYNC INDICATOR */
+.sync-wrap{display:flex;align-items:center;gap:5px;cursor:default;user-select:none}
+.sync-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0;transition:background .3s}
+.sync-ok .sync-dot{background:var(--green)}
+.sync-syncing .sync-dot{background:var(--amber);animation:pulse .9s infinite}
+.sync-offline .sync-dot{background:var(--red)}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.35}}
+.sync-label{font-size:11px;color:var(--muted)}
+
+/* SUMMARY */
+.summary{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;padding:14px 18px}
+.s-card{background:var(--surface);border-radius:var(--rs);padding:11px 10px;text-align:center}
+.s-label{font-size:11px;color:var(--muted);margin-bottom:3px}
+.s-val{font-size:18px;font-weight:700;color:var(--text);direction:ltr;display:inline-block}
+.s-val.green{color:var(--green)}
+.s-val.bordeaux{color:var(--bordeaux)}
+
+/* TABS */
+.tabs{display:flex;gap:7px;padding:0 18px 14px;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none}
+.tabs::-webkit-scrollbar{display:none}
+.tab{background:var(--surface);border:none;border-radius:20px;padding:7px 14px;font-size:13px;color:var(--muted);cursor:pointer;font-family:inherit;white-space:nowrap;flex-shrink:0}
+.tab.active{background:var(--text);color:var(--bg)}
+.tab:active{opacity:.8}
+
+/* CARDS */
+.list{padding:0 18px 100px;display:flex;flex-direction:column;gap:6px}
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--rs);padding:10px 13px;cursor:pointer;transition:transform .1s}
+.card:active{transform:scale(.98)}
+.card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px}
+.card-name{font-size:14px;font-weight:600;color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.card-client{font-size:11px;color:var(--muted)}
+.card-amount{font-size:15px;font-weight:700;white-space:nowrap;direction:ltr;color:var(--text);flex-shrink:0}
+.card-row2{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.badges{display:flex;gap:4px;flex-wrap:wrap}
+.badge{font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px}
+.bg{background:var(--green-bg);color:var(--green)}
+.ba{background:var(--amber-bg);color:var(--amber)}
+.br{background:var(--red-bg);color:var(--red)}
+.bb{background:var(--blue-bg);color:var(--blue)}
+.bgr{background:var(--surface2);color:var(--muted)}
+.bbx{background:var(--bordeaux-bg);color:var(--bordeaux)}
+.bpu{background:var(--purple-bg);color:var(--purple)}
+.card-meta{font-size:11px;color:var(--muted);margin-right:auto}
+.card-notes{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.4;border-top:1px solid var(--border);padding-top:5px}
+
+/* BOTTOM BAR */
+.bar{position:fixed;bottom:0;left:0;right:0;background:var(--text);color:var(--bg);padding:13px 18px;display:flex;justify-content:space-between;align-items:center;z-index:20}
+.bar-left{line-height:1.4}
+.bar-label{font-size:12px;opacity:.65}
+.bar-count{font-size:11px;opacity:.5}
+.bar-sum{font-size:19px;font-weight:700;direction:ltr}
+
+/* FAB */
+.fab{position:fixed;bottom:68px;left:18px;width:50px;height:50px;border-radius:50%;background:var(--bordeaux);color:#fff;border:none;font-size:26px;font-weight:300;cursor:pointer;z-index:21;display:flex;align-items:center;justify-content:center;box-shadow:0 3px 12px rgba(125,36,66,.35)}
+.fab:active{opacity:.85;transform:scale(.93)}
+
+/* EMPTY */
+.empty{text-align:center;padding:60px 20px}
+.empty-icon{font-size:44px;margin-bottom:12px;opacity:.7}
+.empty-title{font-size:16px;font-weight:600;margin-bottom:5px}
+.empty-sub{font-size:13px;color:var(--muted)}
+
+/* MODAL */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:none;align-items:flex-end;justify-content:center}
+.overlay.open{display:flex}
+.modal{background:var(--bg);border-radius:20px 20px 0 0;padding:20px 18px 44px;width:100%;max-width:600px;max-height:94vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+.modal-handle{width:38px;height:4px;background:var(--border);border-radius:4px;margin:0 auto 18px}
+.modal-title{font-size:17px;font-weight:600;margin-bottom:18px}
+.fg{margin-bottom:14px}
+.fg label{font-size:12px;color:var(--muted);display:block;margin-bottom:5px}
+.fi,.fs,.ft{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:11px 13px;font-size:15px;color:var(--text);font-family:inherit;direction:rtl;-webkit-appearance:none;outline:none;transition:border-color .15s}
+.fi:focus,.fs:focus,.ft:focus{border-color:var(--text);background:var(--white)}
+.ft{resize:none;line-height:1.5}
+.frow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.btn-save{width:100%;background:var(--text);color:var(--bg);border:none;border-radius:var(--rs);padding:14px;font-size:16px;font-weight:500;cursor:pointer;font-family:inherit;margin-top:6px}
+.btn-del{width:100%;background:transparent;color:var(--red);border:1px solid var(--red-bg);border-radius:var(--rs);padding:12px;font-size:14px;cursor:pointer;font-family:inherit;margin-top:8px}
+
+/* SEARCH */
+.search-wrap{padding:0 18px 10px}
+.search-input{width:100%;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:9px 13px;font-size:14px;color:var(--text);font-family:inherit;direction:rtl;-webkit-appearance:none;outline:none}
+.search-input:focus{border-color:var(--text);background:var(--white)}
+
+/* MONTHLY VIEW */
+.month-group{margin-bottom:8px}
+.month-header{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:14px 15px;cursor:pointer;user-select:none;-webkit-user-select:none}
+.month-header.current{background:var(--bordeaux);border-color:var(--bordeaux);color:#fff}
+.month-header.open{border-radius:var(--r) var(--r) 0 0;border-bottom-color:transparent}
+.month-header:active{opacity:.85}
+.month-row1{display:flex;align-items:center;justify-content:space-between;margin-bottom:3px}
+.month-title{font-size:15px;font-weight:700}
+.month-right{display:flex;align-items:center;gap:10px}
+.month-sum{font-size:16px;font-weight:700;direction:ltr}
+.month-chevron{font-size:10px;transition:transform .2s;display:inline-block;opacity:.7}
+.month-header.open .month-chevron{transform:rotate(180deg)}
+.month-meta{font-size:12px;margin-bottom:8px;opacity:.7}
+.month-bar{height:5px;border-radius:3px;display:flex;overflow:hidden;background:rgba(0,0,0,.1)}
+.month-bar-seg{height:100%}
+.month-legend{display:flex;gap:10px;margin-top:6px;flex-wrap:wrap}
+.month-legend-item{font-size:11px;display:flex;align-items:center;gap:3px;opacity:.85}
+.month-legend-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.month-header:not(.current) .month-meta{color:var(--muted)}
+.month-header:not(.current) .month-title,.month-header:not(.current) .month-sum{color:var(--text)}
+.month-header:not(.current) .month-legend-item{color:var(--muted)}
+.month-cards{border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);padding:8px;display:flex;flex-direction:column;gap:6px;background:var(--bg)}
+.month-cards .card{border-radius:var(--rs)}
+
+/* GRAPH */
+.graph-wrap{padding:0 0 12px}
+.graph-card{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:10px}
+.graph-title{font-size:14px;font-weight:600;margin-bottom:14px;color:var(--text)}
+.graph-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch}
+.month-grid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px}
+.month-row-item{background:var(--surface);border-radius:var(--rs);padding:9px 12px;display:flex;justify-content:space-between;align-items:center}
+.month-row-item.highlight{background:var(--bordeaux-bg)}
+.mri-label{font-size:12px;color:var(--muted)}
+.mri-val{font-size:13px;font-weight:700;direction:ltr;color:var(--text)}
+.mri-val.bordeaux{color:var(--bordeaux)}
+
+/* QUICK ADD */
+.quick-add{display:flex;gap:7px;padding:0 18px 12px;align-items:center}
+.qa-name{flex:1;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:9px 13px;font-size:14px;color:var(--text);font-family:inherit;direction:rtl;outline:none;-webkit-appearance:none}
+.qa-name:focus{border-color:var(--text);background:var(--white)}
+.qa-amount{width:90px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:9px 10px;font-size:14px;color:var(--text);font-family:inherit;direction:ltr;outline:none;-webkit-appearance:none}
+.qa-amount:focus{border-color:var(--text);background:var(--white)}
+.qa-btn{background:var(--bordeaux);color:#fff;border:none;border-radius:var(--rs);padding:9px 16px;font-size:20px;font-weight:300;cursor:pointer;flex-shrink:0;line-height:1}
+.qa-btn:active{opacity:.8}
+/* CLIENT MODAL */
+.client-modal-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.client-modal-name{font-size:18px;font-weight:700}
+.client-stats-row{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
+.client-stat{background:var(--surface);border-radius:var(--rs);padding:10px;text-align:center}
+.client-stat-label{font-size:10px;color:var(--muted);margin-bottom:3px}
+.client-stat-val{font-size:15px;font-weight:700;direction:ltr}
+.client-name-link{cursor:pointer;text-decoration:underline;text-decoration-style:dotted;text-underline-offset:2px}
+
+/* EFFORT */
+.estar{font-size:22px;cursor:pointer;user-select:none;-webkit-user-select:none;transition:transform .1s}
+.estar:active{transform:scale(1.25)}
+.effort-badge{font-size:10px;padding:2px 6px;border-radius:20px;background:var(--surface2);color:var(--muted)}
+/* AGING */
+.card.age-warn{border-color:var(--amber)!important;border-width:1.5px!important}
+.card.age-danger{border-color:var(--red)!important;border-width:2px!important}
+.age-chip{font-size:10px;font-weight:600;padding:2px 7px;border-radius:20px}
+.age-chip.warn{background:var(--amber-bg);color:var(--amber)}
+.age-chip.danger{background:var(--red-bg);color:var(--red)}
+/* DUP BTN */
+.dup-btn{font-size:13px;background:none;border:none;cursor:pointer;opacity:.3;padding:2px 3px;border-radius:4px;flex-shrink:0;line-height:1}
+.dup-btn:active{opacity:1;transform:scale(.9)}
+</style>
+</head>
+<body>
+
+<!-- GATE -->
+<div class="gate" id="gate">
+  <div class="gate-logo">💼</div>
+  <div class="gate-title">ניהול פרויקטים</div>
+  <div class="gate-sub">הכנסי קוד כניסה</div>
+  <input class="gate-input" id="gate-input" type="password" inputmode="numeric" maxlength="10" placeholder="••••" onkeydown="if(event.key==='Enter')gateSubmit()">
+  <button class="gate-btn" onclick="gateSubmit()">כניסה</button>
+  <div class="gate-err" id="gate-err"></div>
+</div>
+
+<!-- LOADING -->
+<div class="loading-screen hidden" id="loading-screen">
+  <div class="spinner"></div>
+  <div class="loading-text">טוענת נתונים...</div>
+</div>
+
+<div class="header">
+  <div class="header-left">
+    <h1>💼 ניהול פרויקטים</h1>
+    <span id="month-label"></span>
+  </div>
+  <div class="header-right">
+    <div class="sync-wrap sync-ok" id="sync-wrap" title="סטטוס סנכרון">
+      <div class="sync-dot"></div>
+      <span class="sync-label" id="sync-label">מסונכרן</span>
+    </div>
+    <button class="btn-export" onclick="exportData()">ייצוא ↓</button>
+  </div>
+</div>
+
+<div class="summary">
+  <div class="s-card">
+    <div class="s-label" id="s-label-1">סה״כ ₪</div>
+    <div class="s-val green" id="c-sum">0</div>
+  </div>
+  <div class="s-card">
+    <div class="s-label" id="s-label-2">החודש ₪</div>
+    <div class="s-val green" id="c-month">0</div>
+  </div>
+  <div class="s-card">
+    <div class="s-label">לגביה</div>
+    <div class="s-val bordeaux" id="c-pending">0</div>
+  </div>
+  <div class="s-card">
+    <div class="s-label">פרויקטים</div>
+    <div class="s-val" id="c-total">0</div>
+  </div>
+  <div class="s-card" style="grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;padding:11px 14px">
+    <div>
+      <div class="s-label">חודש הכי טוב 🏆</div>
+      <div style="font-size:12px;color:var(--muted);margin-top:2px" id="best-month-label">—</div>
+    </div>
+    <div class="s-val bordeaux" id="best-month-val">—</div>
+  </div>
+  <div class="s-card" style="grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;padding:11px 14px">
+    <div>
+      <div class="s-label">נטו משוער השנה 💰</div>
+      <div style="font-size:11px;color:var(--muted);margin-top:2px">אחרי מס הכנסה + ביטוח לאומי (~35%)</div>
+    </div>
+    <div style="text-align:left">
+      <div style="font-size:11px;color:var(--muted)" id="tax-gross"></div>
+      <div class="s-val green" id="tax-net">—</div>
+    </div>
+  </div>
+</div>
+
+<div class="tabs">
+  <button class="tab active" id="tab-month-current" onclick="setFilter('month',this)">החודש</button>
+  <button class="tab" onclick="setFilter('unpaid',this)">לשלוח דרישה</button>
+  <button class="tab" onclick="setFilter('months',this)">חודשים קודמים</button>
+  <button class="tab" onclick="setFilter('graph',this)">📊 גרף</button>
+  <button class="tab" onclick="setFilter('invoice',this)">נשלחה דרישה</button>
+  <button class="tab" onclick="setFilter('done',this)">שולם</button>
+</div>
+
+<div class="quick-add" id="quick-add-wrap">
+  <input class="qa-name" id="qa-name" type="text" placeholder="הוספה מהירה — שם פרויקט" onkeydown="if(event.key==='Enter')document.getElementById('qa-amount').focus()">
+  <input class="qa-amount" id="qa-amount" type="number" placeholder="₪" inputmode="decimal" onkeydown="if(event.key==='Enter')quickAdd()">
+  <button class="qa-btn" onclick="quickAdd()">+</button>
+</div>
+
+<div class="search-wrap" id="search-wrap">
+  <input class="search-input" id="search" type="text" placeholder="🔍  חיפוש לפי שם, לקוח או קטגוריה..." oninput="render()">
+</div>
+
+<div class="list" id="list"></div>
+
+<button class="fab" onclick="openModal()">+</button>
+
+<div class="bar">
+  <div class="bar-left">
+    <div class="bar-label">סה״כ מוצג</div>
+    <div class="bar-count" id="bar-count"></div>
+  </div>
+  <div class="bar-sum" id="bar-sum">₪0</div>
+</div>
+
+<!-- MODAL -->
+<div class="overlay" id="overlay" onclick="overlayClick(event)">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title" id="modal-title">פרויקט חדש</div>
+
+    <div class="fg">
+      <label>שם הפרויקט *</label>
+      <input class="fi" id="f-name" type="text" placeholder="לדוגמה: קמפיין השקה">
+    </div>
+    <div class="fg">
+      <label>לקוח</label>
+      <input class="fi" id="f-client" type="text" placeholder="שם הלקוח" list="dl-clients" autocomplete="off">
+      <datalist id="dl-clients"></datalist>
+    </div>
+    <div class="frow">
+      <div class="fg">
+        <label>קטגוריה</label>
+        <select class="fs" id="f-cat">
+          <option value="">ללא</option>
+          <option>קמפיין</option>
+          <option>אירוע</option>
+          <option>עמלות</option>
+          <option>שונה</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>סכום (₪)</label>
+        <input class="fi" id="f-amount" type="number" placeholder="0" inputmode="decimal">
+      </div>
+    </div>
+    <div class="frow">
+      <div class="fg">
+        <label>סטטוס פרויקט</label>
+        <select class="fs" id="f-sp">
+          <option>טרם החל</option>
+          <option>בתהליך</option>
+          <option>בוצע</option>
+        </select>
+      </div>
+      <div class="fg">
+        <label>סטטוס תשלום</label>
+        <select class="fs" id="f-pay">
+          <option>טרם שולם</option>
+          <option>נשלחה דרישת תשלום</option>
+          <option>שולם במלואו</option>
+        </select>
+      </div>
+    </div>
+    <div class="frow">
+      <div class="fg">
+        <label>תאריך ביצוע</label>
+        <input class="fi" id="f-exec" type="date">
+      </div>
+      <div class="fg">
+        <label>יעד לתשלום</label>
+        <input class="fi" id="f-due" type="date">
+      </div>
+    </div>
+    <div class="fg">
+      <label>הערות</label>
+      <textarea class="ft" id="f-notes" rows="2" placeholder="הערות נוספות..."></textarea>
+    </div>
+    <div class="fg">
+      <label>רמת מאמץ ⚡ <span style="font-size:10px;color:var(--muted)">(1=קל מאוד · 5=קשה מאוד)</span></label>
+      <div id="f-effort-stars" style="display:flex;gap:10px;margin-top:5px">
+        <span class="estar" onclick="setEffort(1)">☆</span>
+        <span class="estar" onclick="setEffort(2)">☆</span>
+        <span class="estar" onclick="setEffort(3)">☆</span>
+        <span class="estar" onclick="setEffort(4)">☆</span>
+        <span class="estar" onclick="setEffort(5)">☆</span>
+      </div>
+    </div>
+    <button class="btn-save" onclick="save()">שמירה</button>
+    <button class="btn-del" id="btn-del" onclick="del()" style="display:none">מחיקת פרויקט</button>
+  </div>
+</div>
+
+<script>
+// ── CONFIG
+const ACCESS_CODE = '1234';
+const SUPABASE_URL = 'https://muefvujwxzqidiycmedh.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im11ZWZ2dWp3eHpxaWRpeWNtZWRoIiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk2MjE5MDQsImV4cCI6MjA5NTE5NzkwNH0.tWOqFI36rQ2Eih5uAEXHeznLk9sI97LYU4kXAVL1Mzk';
+
+// ── SUPABASE CLIENT
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+// ── GATE
+function gateSubmit(){
+  const v=document.getElementById('gate-input').value.trim();
+  if(v===ACCESS_CODE){
+    sessionStorage.setItem('crm_auth','1');
+    document.getElementById('gate').classList.add('hidden');
+    initData();
+  } else {
+    document.getElementById('gate-err').textContent='קוד שגוי, נסי שוב';
+    document.getElementById('gate-input').value='';
+    document.getElementById('gate-input').focus();
+  }
+}
+if(sessionStorage.getItem('crm_auth')==='1'){
+  document.getElementById('gate').classList.add('hidden');
+}
+
+// ── SEED (fallback only — used if no data in Supabase)
+const _seed=[
+  {id:'s1',name:'פסטיטו',client:'פסטיטו',cat:'קמפיין',sp:'בוצע',pay:'נשלחה דרישת תשלום',amount:'5000',exec:'2026-05-01',due:'',notes:'',createdAt:'2026-05-01T00:00:00.000Z'},
+  {id:'s2',name:'יום צילום פסטיטו',client:'פסטיטו',cat:'אירוע',sp:'בוצע',pay:'נשלחה דרישת תשלום',amount:'2500',exec:'2026-05-01',due:'',notes:'',createdAt:'2026-05-01T00:00:00.000Z'},
+  {id:'s3',name:'קולומביה',client:'קולומביה',cat:'קמפיין',sp:'בוצע',pay:'טרם שולם',amount:'2000',exec:'2026-05-01',due:'',notes:'סטורי',createdAt:'2026-05-01T00:00:00.000Z'},
+  {id:'s4',name:'OUTSIDERS',client:'OUTSIDERS',cat:'קמפיין',sp:'בתהליך',pay:'טרם שולם',amount:'1700',exec:'2026-05-01',due:'',notes:'',createdAt:'2026-05-01T00:00:00.000Z'},
+  {id:'s5',name:'לינקס',client:'לינקס',cat:'קמפיין',sp:'בוצע',pay:'טרם שולם',amount:'1000',exec:'2026-05-01',due:'',notes:'מסעדה',createdAt:'2026-05-01T00:00:00.000Z'},
+  {id:'s6',name:'צילומי מאחורי הקלעים נסטלה',client:'נסטלה',cat:'קמפיין',sp:'בתהליך',pay:'טרם שולם',amount:'2000',exec:'2026-05-01',due:'',notes:'דנה סושיאל',createdAt:'2026-05-01T00:00:00.000Z'},
+  {id:'s7',name:'כנס פיננסיים',client:'',cat:'אירוע',sp:'בוצע',pay:'טרם שולם',amount:'3500',exec:'2026-05-01',due:'',notes:'',createdAt:'2026-05-01T00:00:00.000Z'},
+  {id:'s8',name:'פיצה מעדנות - עדן',client:'מעדנות עדן',cat:'אירוע',sp:'בתהליך',pay:'טרם שולם',amount:'11000',exec:'2026-05-01',due:'',notes:'',createdAt:'2026-05-01T00:00:00.000Z'}
+];
+const _historical=[
+  {id:'h_apr1',name:'מסיבת עצמאות',client:'',cat:'אירוע',sp:'בוצע',pay:'שולם במלואו',amount:'25500',exec:'2026-04-22',due:'',notes:'9115 מקום, 5000 דייגי',createdAt:'2026-04-22T00:00:00.000Z'},
+  {id:'h_apr2',name:'קולומביה',client:'קולומביה',cat:'קמפיין',sp:'בוצע',pay:'נשלחה דרישת תשלום',amount:'2000',exec:'2026-04-26',due:'',notes:'',createdAt:'2026-04-26T00:00:00.000Z'},
+  {id:'h_apr3',name:'פסטיטו',client:'פסטיטו',cat:'קמפיין',sp:'בוצע',pay:'נשלחה דרישת תשלום',amount:'5000',exec:'2026-04-20',due:'',notes:'',createdAt:'2026-04-20T00:00:00.000Z'},
+  {id:'h_apr4',name:"סוף'ש רוקחים רוקות 9-11.4",client:'',cat:'אירוע',sp:'בוצע',pay:'שולם במלואו',amount:'18700',exec:'2026-04-09',due:'',notes:'',createdAt:'2026-04-09T00:00:00.000Z'},
+  {id:'h_apr5',name:'עמלות שני ארז',client:'שני ארז',cat:'עמלות',sp:'בוצע',pay:'שולם במלואו',amount:'750',exec:'2026-04-09',due:'',notes:'',createdAt:'2026-04-09T00:00:00.000Z'},
+  {id:'h_apr6',name:'איתי מישאהלוף',client:'איתי מישאהלוף',cat:'שונה',sp:'בוצע',pay:'שולם במלואו',amount:'2709',exec:'2026-04-26',due:'',notes:'',createdAt:'2026-04-26T00:00:00.000Z'},
+  {id:'h_apr7',name:'עמלות מסיבה',client:'',cat:'עמלות',sp:'בוצע',pay:'שולם במלואו',amount:'100',exec:'2026-04-25',due:'',notes:'',createdAt:'2026-04-25T00:00:00.000Z'},
+  {id:'h_mar1',name:'חוסן כלכלי תחת אש 3.3',client:'',cat:'אירוע',sp:'בוצע',pay:'שולם במלואו',amount:'3243',exec:'2026-03-03',due:'',notes:'',createdAt:'2026-03-03T00:00:00.000Z'},
+  {id:'h_mar2',name:'חוסן כלכלי תחת אש 5.3',client:'',cat:'אירוע',sp:'בוצע',pay:'שולם במלואו',amount:'3933',exec:'2026-03-05',due:'',notes:'',createdAt:'2026-03-05T00:00:00.000Z'},
+  {id:'h_mar3',name:'עמלות שני ארז',client:'שני ארז',cat:'עמלות',sp:'בוצע',pay:'שולם במלואו',amount:'600',exec:'2026-03-01',due:'',notes:'',createdAt:'2026-03-01T00:00:00.000Z'},
+  {id:'h_mar4',name:'עמלות אביעד שוב',client:'אביעד שוב',cat:'עמלות',sp:'בוצע',pay:'שולם במלואו',amount:'4750',exec:'2026-03-01',due:'',notes:'',createdAt:'2026-03-01T00:00:00.000Z'},
+  {id:'h_mar5',name:"סוף'ש רוקחים רוקות",client:'',cat:'אירוע',sp:'בוצע',pay:'שולם במלואו',amount:'11600',exec:'2026-03-15',due:'',notes:'',createdAt:'2026-03-15T00:00:00.000Z'},
+  {id:'h_mar6',name:'BUYME',client:'BUYME',cat:'קמפיין',sp:'בוצע',pay:'נשלחה דרישת תשלום',amount:'2500',exec:'2026-03-01',due:'',notes:'',createdAt:'2026-03-01T00:00:00.000Z'},
+  {id:'h_mar7',name:'קולומביה',client:'קולומביה',cat:'קמפיין',sp:'בוצע',pay:'נשלחה דרישת תשלום',amount:'2500',exec:'2026-03-01',due:'',notes:'',createdAt:'2026-03-01T00:00:00.000Z'},
+  {id:'h_mar8',name:'פסטיטו',client:'פסטיטו',cat:'קמפיין',sp:'בוצע',pay:'שולם במלואו',amount:'5000',exec:'2026-03-01',due:'',notes:'',createdAt:'2026-03-01T00:00:00.000Z'},
+  {id:'h_feb1',name:'פסטיטו',client:'פסטיטו',cat:'קמפיין',sp:'בוצע',pay:'שולם במלואו',amount:'5000',exec:'2026-02-01',due:'',notes:'',createdAt:'2026-02-01T00:00:00.000Z'},
+  {id:'h_feb2',name:'ריטריט יסודות',client:'',cat:'אירוע',sp:'בוצע',pay:'שולם במלואו',amount:'61000',exec:'2026-02-01',due:'',notes:'',createdAt:'2026-02-01T00:00:00.000Z'},
+  {id:'h_feb3',name:'קמפיין דרום אדום (שי יניר)',client:'',cat:'קמפיין',sp:'בוצע',pay:'נשלחה דרישת תשלום',amount:'5000',exec:'2026-02-01',due:'',notes:'',createdAt:'2026-02-01T00:00:00.000Z'},
+  {id:'h_jan1',name:'פסטיטו',client:'פסטיטו',cat:'קמפיין',sp:'בוצע',pay:'שולם במלואו',amount:'5000',exec:'2026-01-01',due:'',notes:'',createdAt:'2026-01-01T00:00:00.000Z'},
+  {id:'h_jan2',name:'עמלות שני ארז',client:'שני ארז',cat:'עמלות',sp:'בוצע',pay:'שולם במלואו',amount:'738',exec:'2026-01-01',due:'',notes:'',createdAt:'2026-01-01T00:00:00.000Z'},
+  {id:'h_jan3',name:'בראנץ נשים 9.1',client:'',cat:'אירוע',sp:'בוצע',pay:'שולם במלואו',amount:'2000',exec:'2026-01-09',due:'',notes:'',createdAt:'2026-01-09T00:00:00.000Z'},
+  {id:'h_jan4',name:'בראנץ נשים 30.1',client:'',cat:'אירוע',sp:'בוצע',pay:'שולם במלואו',amount:'2000',exec:'2026-01-30',due:'',notes:'פיקסר פרוייקטים (דנה)',createdAt:'2026-01-30T00:00:00.000Z'},
+  {id:'h_jan5',name:'סרטון לקרפור',client:'קרפור',cat:'קמפיין',sp:'בוצע',pay:'טרם שולם',amount:'1500',exec:'2026-01-15',due:'',notes:'',createdAt:'2026-01-15T00:00:00.000Z'},
+];
+
+// ── STATE
+let data = [];
+let filter = 'month', editId = null, openMonths = new Set();
+const months = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+
+// ── SUPABASE HELPERS
+function toDb(p){
+  return {
+    id: p.id,
+    name: p.name || '',
+    client: p.client || '',
+    cat: p.cat || '',
+    sp: p.sp || 'טרם החל',
+    pay: p.pay || 'טרם שולם',
+    amount: String(p.amount || ''),
+    exec_date: p.exec || null,
+    due_date: p.due || null,
+    notes: p.notes || '',
+    created_at: p.createdAt || new Date().toISOString()
+  };
+}
+function fromDb(row){
+  return {
+    id: row.id,
+    name: row.name || '',
+    client: row.client || '',
+    cat: row.cat || '',
+    sp: row.sp || 'טרם החל',
+    pay: row.pay || 'טרם שולם',
+    amount: row.amount || '',
+    exec: row.exec_date || '',
+    due: row.due_date || '',
+    notes: row.notes || '',
+    createdAt: row.created_at
+  };
+}
+
+// ── SYNC STATUS
+function setSyncStatus(status){
+  const wrap = document.getElementById('sync-wrap');
+  const lbl = document.getElementById('sync-label');
+  wrap.className = 'sync-wrap sync-' + status;
+  lbl.textContent = status === 'ok' ? 'מסונכרן' : status === 'syncing' ? 'מסנכרן...' : 'לא מחובר';
+}
+
+// ── INIT DATA (load from Supabase)
+async function initData(){
+  document.getElementById('loading-screen').classList.remove('hidden');
+  setSyncStatus('syncing');
+  try {
+    const { data: rows, error } = await sb.from('crm_projects').select('*').order('created_at', { ascending: false });
+    if(error) throw error;
+
+    if(rows.length === 0){
+      // First time — push local seed + historical to Supabase
+      const local = JSON.parse(localStorage.getItem('crm_v2') || '[]');
+      const toUpload = local.length > 0 ? local : [..._seed, ..._historical];
+      // Apply migrations on upload
+      const migrated = toUpload.map(p => ({
+        ...p,
+        pay: p.pay === 'נשלחה חשבונית' ? 'נשלחה דרישת תשלום' : p.pay
+      }));
+      const dbRows = migrated.map(toDb);
+      // Supabase has limit on upsert size — batch if needed
+      for(let i = 0; i < dbRows.length; i += 50){
+        const batch = dbRows.slice(i, i + 50);
+        const { error: err } = await sb.from('crm_projects').upsert(batch, { onConflict: 'id' });
+        if(err) throw err;
+      }
+      data = migrated;
+    } else {
+      data = rows.map(fromDb);
+    }
+
+    // Update local cache
+    localStorage.setItem('crm_v2', JSON.stringify(data));
+    setSyncStatus('ok');
+  } catch(e){
+    console.error('Supabase error:', e);
+    // Fall back to localStorage
+    const local = JSON.parse(localStorage.getItem('crm_v2') || '[]');
+    data = local.length > 0 ? local : [..._seed, ..._historical];
+    setSyncStatus('offline');
+  }
+  document.getElementById('loading-screen').classList.add('hidden');
+  render();
+}
+
+// ── PERSIST (save to Supabase + localStorage)
+function persistLocal(){
+  localStorage.setItem('crm_v2', JSON.stringify(data));
+}
+async function syncProject(p){
+  setSyncStatus('syncing');
+  try {
+    const { error } = await sb.from('crm_projects').upsert(toDb(p), { onConflict: 'id' });
+    if(error) throw error;
+    setSyncStatus('ok');
+  } catch(e){
+    console.error('Sync error:', e);
+    setSyncStatus('offline');
+  }
+}
+async function deleteProject(id){
+  setSyncStatus('syncing');
+  try {
+    const { error } = await sb.from('crm_projects').delete().eq('id', id);
+    if(error) throw error;
+    setSyncStatus('ok');
+  } catch(e){
+    console.error('Sync error:', e);
+    setSyncStatus('offline');
+  }
+}
+
+// ── UTILS
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2) }
+function fmt(n){ if(!n && n!==0) return ''; return '₪' + Number(n).toLocaleString('he-IL') }
+function fmtDate(d){ if(!d) return ''; const p=d.split('-'); return p[2]+'/'+p[1] }
+function today(){ return new Date().toISOString().split('T')[0] }
+function monthKey(d){ return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0') }
+function getQ(){ return (document.getElementById('search')||{}).value?.trim().toLowerCase()||'' }
+
+function clientFreqMap(){
+  const m = {};
+  data.forEach(p=>{ if(p.client) m[p.client] = (m[p.client]||0) + 1; });
+  return m;
+}
+function catBadge(c){
+  if(!c) return '';
+  const m = {קמפיין:'bb', אירוע:'bg', עמלות:'ba', שונה:'bgr'};
+  return `<span class="badge ${m[c]||'bgr'}">${c}</span>`;
+}
+function spBadge(s){ const m={'טרם החל':'bgr','בתהליך':'ba','בוצע':'bg'}; return `<span class="badge ${m[s]||'bgr'}">${s}</span>` }
+function payBadge(s){ const m={'טרם שולם':'br','נשלחה דרישת תשלום':'bb','שולם במלואו':'bg'}; return `<span class="badge ${m[s]||'bgr'}">${s}</span>` }
+
+function getFiltered(){
+  const now = new Date(); const q = getQ();
+  return data.filter(p=>{
+    if(filter==='month'){
+      if(!p.exec) return false;
+      const d = new Date(p.exec+'T12:00:00');
+      if(d.getMonth()!==now.getMonth()||d.getFullYear()!==now.getFullYear()) return false;
+    }
+    if(filter==='unpaid' && (p.pay!=='טרם שולם' || p.sp!=='בוצע')) return false;
+    if(filter==='invoice' && p.pay!=='נשלחה דרישת תשלום') return false;
+    if(filter==='done' && p.pay!=='שולם במלואו') return false;
+    if(q && !p.name?.toLowerCase().includes(q) && !p.client?.toLowerCase().includes(q) && !p.cat?.toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function toggleMonth(key){
+  if(openMonths.has(key)) openMonths.delete(key); else openMonths.add(key);
+  render();
+}
+
+// ── GRAPH VIEW
+function renderGraph(){
+  document.getElementById('search-wrap').style.display='none';
+  document.getElementById('quick-add-wrap').style.display='none';
+  const groups = {};
+  data.forEach(p=>{
+    if(!p.exec) return;
+    const d = new Date(p.exec+'T12:00:00');
+    const key = monthKey(d);
+    if(!groups[key]) groups[key] = {key, year:d.getFullYear(), month:d.getMonth(), total:0, paid:0, invoice:0, unpaid:0};
+    const amt = Number(p.amount)||0;
+    groups[key].total += amt;
+    if(p.pay==='שולם במלואו') groups[key].paid += amt;
+    else if(p.pay==='נשלחה דרישת תשלום') groups[key].invoice += amt;
+    else groups[key].unpaid += amt;
+  });
+  const sorted = Object.values(groups).sort((a,b)=>a.year!==b.year?a.year-b.year:a.month-b.month);
+  const bars = sorted.slice(-12);
+  const now = new Date();
+  const currentKey = monthKey(now);
+  const maxVal = Math.max(...bars.map(b=>b.total), 1);
+  const chartH = 160;
+  const barCount = bars.length;
+  const totalW = Math.max(barCount*52, 300);
+  const barW = Math.min(44, Math.floor(totalW/barCount)-8);
+
+  const svgBars = bars.map((b,i)=>{
+    const x = i*(totalW/barCount)+(totalW/barCount-barW)/2;
+    const bh = Math.max(4,(b.total/maxVal)*chartH);
+    const y = chartH-bh;
+    const isCur = b.key === currentKey;
+    const fill = isCur ? 'var(--bordeaux)' : 'var(--green)';
+    const lbl = b.total>=1000 ? Math.round(b.total/1000)+'k' : b.total;
+    return `<g>
+      <rect x="${x}" y="${y}" width="${barW}" height="${bh}" rx="4" fill="${fill}" opacity="${isCur?1:.65}"/>
+      <text x="${x+barW/2}" y="${chartH+14}" text-anchor="middle" font-size="9" fill="var(--muted)" font-family="-apple-system,sans-serif">${months[b.month].slice(0,3)}</text>
+      <text x="${x+barW/2}" y="${y-4}" text-anchor="middle" font-size="9" fill="var(--muted)" font-family="-apple-system,sans-serif">${lbl}</text>
+    </g>`;
+  }).join('');
+
+  const totalAll = data.reduce((s,p)=>s+(Number(p.amount)||0), 0);
+  document.getElementById('bar-sum').textContent = fmt(totalAll)||'₪0';
+  document.getElementById('bar-count').textContent = bars.length+' חודשים';
+
+  const gridItems = bars.slice().reverse().map(b=>{
+    const isCur = b.key === currentKey;
+    return `<div class="month-row-item${isCur?' highlight':''}">
+      <span class="mri-label">${months[b.month]} ${b.year}</span>
+      <span class="mri-val${isCur?' bordeaux':''}">${fmt(b.total)}</span>
+    </div>`;
+  }).join('');
+
+  document.getElementById('list').innerHTML = `
+    <div class="graph-card">
+      <div class="graph-title">הכנסות לפי חודש</div>
+      <div class="graph-scroll">
+        <svg width="${totalW}" height="${chartH+22}" viewBox="0 0 ${totalW} ${chartH+22}" style="display:block">${svgBars}</svg>
+      </div>
+    </div>
+    <div class="month-grid">${gridItems}</div>
+  `;
+}
+
+// ── MONTHS VIEW
+function renderMonths(){
+  document.getElementById('search-wrap').style.display='';
+  const q = getQ();
+  const items = data.filter(p=>!q||(p.name?.toLowerCase().includes(q)||p.client?.toLowerCase().includes(q)||p.cat?.toLowerCase().includes(q)));
+  const groups = {};
+  items.forEach(p=>{
+    if(!p.exec) return;
+    const d = new Date(p.exec+'T12:00:00');
+    const key = monthKey(d);
+    if(!groups[key]) groups[key] = {key, year:d.getFullYear(), month:d.getMonth(), items:[]};
+    groups[key].items.push(p);
+  });
+  const sorted = Object.values(groups).sort((a,b)=>a.year!==b.year?b.year-a.year:b.month-a.month);
+  const totalAll = items.reduce((s,p)=>s+(Number(p.amount)||0), 0);
+  document.getElementById('bar-sum').textContent = fmt(totalAll)||'₪0';
+  document.getElementById('bar-count').textContent = items.length+' פרויקטים';
+  const now = new Date(), currentKey = monthKey(now);
+  const freq = clientFreqMap();
+  const list = document.getElementById('list');
+  if(!sorted.length){ list.innerHTML=`<div class="empty"><div class="empty-icon">📅</div><div class="empty-title">אין פרויקטים</div></div>`; return; }
+  list.innerHTML = sorted.map(g=>{
+    const isOpen = openMonths.has(g.key), isCur = g.key === currentKey;
+    const total = g.items.reduce((s,p)=>s+(Number(p.amount)||0), 0);
+    const paid = g.items.filter(p=>p.pay==='שולם במלואו').reduce((s,p)=>s+(Number(p.amount)||0), 0);
+    const invoice = g.items.filter(p=>p.pay==='נשלחה דרישת תשלום').reduce((s,p)=>s+(Number(p.amount)||0), 0);
+    const unpaid = Math.max(0, total-paid-invoice);
+    const pp=total?(paid/total*100):0, ip=total?(invoice/total*100):0, up=total?(unpaid/total*100):0;
+    const w=s=>`rgba(255,255,255,${s})`, gc=v=>isCur?w(v):`var(${v})`;
+    const cardsHtml = g.items.slice().sort((a,b)=>(a.exec||'')>(b.exec||'')?1:-1).map(p=>cardHtml(p,freq)).join('');
+    return `<div class="month-group">
+      <div class="month-header${isCur?' current':''}${isOpen?' open':''}" onclick="toggleMonth('${g.key}')">
+        <div class="month-row1"><div class="month-title">${months[g.month]} ${g.year}</div>
+          <div class="month-right"><div class="month-sum">${fmt(total)}</div><span class="month-chevron">▼</span></div>
+        </div>
+        <div class="month-meta">${g.items.length} פרויקטים</div>
+        <div class="month-bar">
+          ${pp>0?`<div class="month-bar-seg" style="width:${pp}%;background:${gc('--green')}"></div>`:''}
+          ${ip>0?`<div class="month-bar-seg" style="width:${ip}%;background:${gc('--blue')}"></div>`:''}
+          ${up>0?`<div class="month-bar-seg" style="width:${up}%;background:${gc('--red')}"></div>`:''}
+        </div>
+        <div class="month-legend">
+          ${paid>0?`<span class="month-legend-item"><span class="month-legend-dot" style="background:${gc('--green')}"></span>${fmt(paid)} שולם</span>`:''}
+          ${invoice>0?`<span class="month-legend-item"><span class="month-legend-dot" style="background:${gc('--blue')}"></span>${fmt(invoice)} דרישה נשלחה</span>`:''}
+          ${unpaid>0?`<span class="month-legend-item"><span class="month-legend-dot" style="background:${gc('--red')}"></span>${fmt(unpaid)} לשלוח דרישה</span>`:''}
+        </div>
+      </div>
+      ${isOpen?`<div class="month-cards">${cardsHtml}</div>`:''}
+    </div>`;
+  }).join('');
+}
+
+function cardHtml(p, freq){
+  const isRecurring = p.client && (freq[p.client]||0) > 1;
+  // Aging
+  let ageClass='',ageChip='';
+  if(p.pay!=='שולם במלואו' && p.due){
+    const daysOver=Math.floor((Date.now()-new Date(p.due+'T12:00:00').getTime())/86400000);
+    if(daysOver>=14){ageClass=' age-danger';ageChip=`<span class="age-chip danger">⚠️ ${daysOver} ימים</span>`;}
+    else if(daysOver>=5){ageClass=' age-warn';ageChip=`<span class="age-chip warn">${daysOver} ימים</span>`;}
+  }
+  // Effort
+  const ef=getEffort(p.id);
+  const efBadge=ef?`<span class="effort-badge">${'⭐'.repeat(ef)}</span>`:'';
+  return `<div class="card${ageClass}" onclick="openModal('${p.id}')">
+    <div class="card-top">
+      <div class="card-name">${p.name}${isRecurring?'<span style="color:var(--amber);font-size:10px;margin-right:5px" title="לקוח חוזר"> ↺</span>':''}</div>
+      ${p.amount?`<div class="card-amount">${fmt(p.amount)}</div>`:''}
+      <button class="dup-btn" onclick="dupProject('${p.id}',event)" title="שכפל פרויקט">📋</button>
+    </div>
+    <div class="card-row2">
+      <div class="badges">${catBadge(p.cat)}${spBadge(p.sp||'טרם החל')}${payBadge(p.pay||'טרם שולם')}${ageChip}${efBadge}</div>
+      ${p.client?`<span class="card-meta"><span class="client-name-link" onclick="event.stopPropagation();showClient('${p.client.replace(/'/g,&quot;\\'&quot;)}')">${p.client}</span>${p.exec?' · '+fmtDate(p.exec):''}</span>`:(p.exec?`<span class="card-meta">${fmtDate(p.exec)}</span>`:'')}
+    </div>
+    ${p.notes?`<div class="card-notes">💬 ${p.notes}</div>`:''}
+  </div>`;
+}
+
+function render(){
+  const now = new Date();
+  const curMK = monthKey(now);
+  document.getElementById('month-label').textContent = months[now.getMonth()]+' '+now.getFullYear();
+  const tabEl=document.getElementById('tab-month-current'); if(tabEl) tabEl.textContent='חודש '+months[now.getMonth()];
+
+  // ── Context-aware summary cards
+  const sumAmt = d => d.reduce((s,p)=>s+(Number(p.amount)||0), 0);
+  const unpaidOf = d => d.filter(p=>p.pay!=='שולם במלואו');
+  const inCurMonth = d => d.filter(p=>p.exec&&monthKey(new Date(p.exec+'T12:00:00'))===curMK);
+  const curMonthData = inCurMonth(data);
+
+  let sumVal, sum2Val, pendingVal, countVal;
+  let sumLabel = 'סה״כ ₪', sum2Label = 'החודש ₪';
+
+  if(filter==='month'){
+    sumLabel='החודש ₪'; sum2Label='שולם ₪';
+    sumVal=sumAmt(curMonthData);
+    sum2Val=sumAmt(curMonthData.filter(p=>p.pay==='שולם במלואו'));
+    pendingVal=sumAmt(unpaidOf(curMonthData));
+    countVal=curMonthData.length;
+  } else if(filter==='unpaid'){
+    const f=data.filter(p=>p.pay==='טרם שולם');
+    sumLabel='לשלוח דרישה'; sum2Label='החודש ₪';
+    sumVal=sumAmt(f);
+    sum2Val=sumAmt(inCurMonth(f));
+    pendingVal=sumAmt(f);
+    countVal=f.length;
+  } else if(filter==='invoice'){
+    const f=data.filter(p=>p.pay==='נשלחה דרישת תשלום');
+    sumLabel='נשלחה דרישה'; sum2Label='החודש ₪';
+    sumVal=sumAmt(f);
+    sum2Val=sumAmt(inCurMonth(f));
+    pendingVal=sumAmt(f);
+    countVal=f.length;
+  } else if(filter==='done'){
+    const f=data.filter(p=>p.pay==='שולם במלואו');
+    sumLabel='שולם ₪'; sum2Label='החודש ₪';
+    sumVal=sumAmt(f);
+    sum2Val=sumAmt(inCurMonth(f));
+    pendingVal=0;
+    countVal=f.length;
+  } else {
+    // הכל / חודשים קודמים / גרף — global
+    sumVal=sumAmt(data);
+    sum2Val=sumAmt(curMonthData);
+    pendingVal=sumAmt(unpaidOf(data));
+    countVal=data.length;
+  }
+
+  document.getElementById('s-label-1').textContent = sumLabel;
+  document.getElementById('s-label-2').textContent = sum2Label;
+  document.getElementById('c-sum').textContent = fmt(sumVal)||'₪0';
+  document.getElementById('c-month').textContent = fmt(sum2Val)||'₪0';
+  document.getElementById('c-pending').textContent = fmt(pendingVal)||'₪0';
+  document.getElementById('c-total').textContent = countVal;
+  const bm=getBestMonth();
+  document.getElementById('best-month-label').textContent=bm?bm.label:'—';
+  document.getElementById('best-month-val').textContent=bm?fmt(bm.amount):'—';
+  // Tax estimate
+  const yearItems=data.filter(p=>{if(!p.exec)return false;return new Date(p.exec+'T12:00:00').getFullYear()===now.getFullYear();});
+  const yGross=yearItems.reduce((s,p)=>s+(Number(p.amount)||0),0);
+  const yNet=Math.round(yGross*0.65);
+  document.getElementById('tax-gross').textContent=yGross?'ברוטו: '+fmt(yGross):'';
+  document.getElementById('tax-net').textContent=yNet?fmt(yNet):'—';
+
+  const clients = [...new Set(data.map(p=>p.client).filter(Boolean))];
+  document.getElementById('dl-clients').innerHTML = clients.map(c=>`<option value="${c}">`).join('');
+
+  if(filter==='months'){ renderMonths(); return; }
+  if(filter==='graph'){ renderGraph(); return; }
+
+  document.getElementById('search-wrap').style.display = '';
+  document.getElementById('quick-add-wrap').style.display = '';
+  const freq = clientFreqMap();
+  const filtered = getFiltered().sort((a,b)=>{
+    if(!a.exec&&!b.exec) return 0; if(!a.exec) return 1; if(!b.exec) return -1;
+    if(filter==='month') return new Date(a.exec+'T12:00:00') - new Date(b.exec+'T12:00:00');
+    return new Date(b.exec+'T12:00:00') - new Date(a.exec+'T12:00:00');
+  });
+  const bsum = filtered.reduce((s,p)=>s+(Number(p.amount)||0), 0);
+  document.getElementById('bar-sum').textContent = fmt(bsum)||'₪0';
+  document.getElementById('bar-count').textContent = filtered.length+' פרויקטים';
+  const list = document.getElementById('list');
+  if(!filtered.length){ list.innerHTML=`<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">אין פרויקטים</div><div class="empty-sub">לחצי על ➕ כדי להתחיל</div></div>`; return; }
+  list.innerHTML = filtered.map(p=>cardHtml(p,freq)).join('');
+}
+
+function setFilter(f, btn){
+  if(f==='months' && filter!=='months') openMonths = new Set([monthKey(new Date())]);
+  filter = f;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  render();
+}
+
+function openModal(id){
+  editId = id || null;
+  document.getElementById('modal-title').textContent = id ? 'עריכת פרויקט' : 'פרויקט חדש';
+  document.getElementById('btn-del').style.display = id ? 'block' : 'none';
+  if(id){
+    const p = data.find(x=>x.id===id);
+    if(p){
+      document.getElementById('f-name').value = p.name||'';
+      document.getElementById('f-client').value = p.client||'';
+      document.getElementById('f-cat').value = p.cat||'';
+      document.getElementById('f-sp').value = p.sp||'טרם החל';
+      document.getElementById('f-pay').value = p.pay||'טרם שולם';
+      document.getElementById('f-amount').value = p.amount||'';
+      document.getElementById('f-exec').value = p.exec||'';
+      document.getElementById('f-due').value = p.due||'';
+      document.getElementById('f-notes').value = p.notes||'';
+      loadEffort(id);
+    }
+  } else {
+    ['f-name','f-client','f-amount','f-due','f-notes'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('f-cat').value = '';
+    document.getElementById('f-sp').value = 'טרם החל';
+    document.getElementById('f-pay').value = 'טרם שולם';
+    document.getElementById('f-exec').value = today();
+    resetEffort();
+  }
+  document.getElementById('overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('f-name').focus(), 350);
+}
+function closeModal(){ document.getElementById('overlay').classList.remove('open'); editId=null; }
+function overlayClick(e){ if(e.target===document.getElementById('overlay')) closeModal(); }
+
+async function save(){
+  const name = document.getElementById('f-name').value.trim();
+  if(!name){ document.getElementById('f-name').focus(); return; }
+  const p = {
+    name,
+    client: document.getElementById('f-client').value.trim(),
+    cat: document.getElementById('f-cat').value,
+    sp: document.getElementById('f-sp').value,
+    pay: document.getElementById('f-pay').value,
+    amount: document.getElementById('f-amount').value,
+    exec: document.getElementById('f-exec').value,
+    due: document.getElementById('f-due').value,
+    notes: document.getElementById('f-notes').value.trim()
+  };
+  if(editId){
+    const i = data.findIndex(x=>x.id===editId);
+    if(i!==-1) data[i] = {...data[i], ...p};
+    setEffortForId(editId, _ef);
+    persistLocal();
+    render();
+    closeModal();
+    await syncProject(data.find(x=>x.id===editId));
+  } else {
+    p.id = uid();
+    p.createdAt = new Date().toISOString();
+    setEffortForId(p.id, _ef);
+    data.unshift(p);
+    persistLocal();
+    render();
+    closeModal();
+    await syncProject(p);
+  }
+}
+
+async function del(){
+  if(!editId) return;
+  if(!confirm('למחוק את הפרויקט הזה?')) return;
+  const id = editId;
+  data = data.filter(p=>p.id!==id);
+  persistLocal();
+  render();
+  closeModal();
+  await deleteProject(id);
+}
+
+function exportData(){
+  const json = JSON.stringify(data, null, 2);
+  const blob = new Blob([json], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  const d = new Date();
+  a.href = url;
+  a.download = `crm-backup-${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+
+// ── QUICK ADD
+function quickAdd(){
+  const name=(document.getElementById('qa-name').value||'').trim();
+  if(!name){document.getElementById('qa-name').focus();return;}
+  const amount=document.getElementById('qa-amount').value||'';
+  const p={id:uid(),name,client:'',cat:'',sp:'טרם החל',pay:'טרם שולם',amount,exec:today(),due:'',notes:'',createdAt:new Date().toISOString()};
+  data.unshift(p);
+  persistLocal();
+  document.getElementById('qa-name').value='';
+  document.getElementById('qa-amount').value='';
+  render();
+  syncProject(p);
+  document.getElementById('qa-name').focus();
+}
+
+// ── CLIENT VIEW
+function showClient(name){
+  if(!name) return;
+  const projects=data.filter(p=>p.client===name).sort((a,b)=>(b.exec||'').localeCompare(a.exec||''));
+  const total=projects.reduce((s,p)=>s+(Number(p.amount)||0),0);
+  const paid=projects.filter(p=>p.pay==='שולם במלואו').reduce((s,p)=>s+(Number(p.amount)||0),0);
+  const pending=projects.filter(p=>p.pay!=='שולם במלואו').reduce((s,p)=>s+(Number(p.amount)||0),0);
+  document.getElementById('client-modal-name').textContent=name+' ('+projects.length+' פרויקטים)';
+  document.getElementById('cs-total').textContent=fmt(total)||'₪0';
+  document.getElementById('cs-paid').textContent=fmt(paid)||'₪0';
+  document.getElementById('cs-pending').textContent=fmt(pending)||'₪0';
+  const freq=clientFreqMap();
+  document.getElementById('client-modal-list').innerHTML=projects.map(p=>cardHtml(p,freq)).join('');
+  document.getElementById('client-overlay').classList.add('open');
+}
+function closeClientModal(){document.getElementById('client-overlay').classList.remove('open');}
+
+// ── BEST MONTH
+function getBestMonth(){
+  const groups={};
+  data.forEach(p=>{
+    if(!p.exec) return;
+    const d=new Date(p.exec+'T12:00:00');
+    const key=monthKey(d);
+    groups[key]=(groups[key]||0)+(Number(p.amount)||0);
+  });
+  let best=null,bestAmt=0;
+  Object.entries(groups).forEach(([k,v])=>{if(v>bestAmt){bestAmt=v;best=k;}});
+  if(!best) return null;
+  const [y,m]=best.split('-');
+  return {label:months[parseInt(m)-1]+' '+y,amount:bestAmt};
+}
+
+
+// ── EFFORT (localStorage only)
+function getEffortMap(){return JSON.parse(localStorage.getItem('crm_effort')||'{}');}
+function setEffortForId(id,n){const m=getEffortMap();if(n)m[id]=n;else delete m[id];localStorage.setItem('crm_effort',JSON.stringify(m));}
+function getEffort(id){return getEffortMap()[id]||0;}
+let _ef=0;
+function setEffort(n){
+  _ef=n;
+  document.querySelectorAll('#f-effort-stars .estar').forEach((s,i)=>{s.textContent=i<n?'⭐':'☆';});
+}
+function loadEffort(id){setEffort(getEffort(id));}
+function resetEffort(){setEffort(0);}
+
+// ── DUPLICATE / TEMPLATE
+function dupProject(id,e){
+  if(e) e.stopPropagation();
+  const p=data.find(x=>x.id===id);
+  if(!p) return;
+  editId=null;
+  document.getElementById('modal-title').textContent='שכפול פרויקט 📋';
+  document.getElementById('btn-del').style.display='none';
+  document.getElementById('f-name').value=p.name||'';
+  document.getElementById('f-client').value=p.client||'';
+  document.getElementById('f-cat').value=p.cat||'';
+  document.getElementById('f-sp').value='טרם החל';
+  document.getElementById('f-pay').value='טרם שולם';
+  document.getElementById('f-amount').value=p.amount||'';
+  document.getElementById('f-exec').value=today();
+  document.getElementById('f-due').value='';
+  document.getElementById('f-notes').value=p.notes||'';
+  loadEffort(id);
+  document.getElementById('overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('f-name').focus(),350);
+}
+
+// ── BOOT
+if(sessionStorage.getItem('crm_auth')==='1'){
+  initData();
+}
+</script>
+
+<!-- CLIENT MODAL -->
+<div class="overlay" id="client-overlay" onclick="if(event.target===this)closeClientModal()">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="client-modal-header">
+      <div class="client-modal-name" id="client-modal-name"></div>
+      <button style="background:none;border:none;font-size:20px;cursor:pointer;color:var(--muted);padding:0 4px" onclick="closeClientModal()">✕</button>
+    </div>
+    <div class="client-stats-row">
+      <div class="client-stat"><div class="client-stat-label">סה״כ</div><div class="client-stat-val" id="cs-total"></div></div>
+      <div class="client-stat"><div class="client-stat-label">שולם</div><div class="client-stat-val" style="color:var(--green)" id="cs-paid"></div></div>
+      <div class="client-stat"><div class="client-stat-label">לגבייה</div><div class="client-stat-val" style="color:var(--bordeaux)" id="cs-pending"></div></div>
+    </div>
+    <div id="client-modal-list" style="display:flex;flex-direction:column;gap:6px;padding-bottom:8px"></div>
+  </div>
+</div>
+
+</body>
+</html>
