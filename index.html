@@ -87,14 +87,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 .card-amount{font-size:15px;font-weight:700;white-space:nowrap;direction:ltr;color:var(--text);flex-shrink:0}
 .card-row2{display:flex;align-items:center;gap:5px;flex-wrap:wrap}
 .badges{display:flex;gap:4px;flex-wrap:wrap}
-.badge{font-size:10px;font-weight:500;padding:2px 8px;border-radius:20px}
-.bg{background:var(--green-bg);color:var(--green)}
-.ba{background:var(--amber-bg);color:var(--amber)}
-.br{background:var(--red-bg);color:var(--red)}
-.bb{background:var(--blue-bg);color:var(--blue)}
-.bgr{background:var(--surface2);color:var(--muted)}
-.bbx{background:var(--bordeaux-bg);color:var(--bordeaux)}
-.bpu{background:var(--purple-bg);color:var(--purple)}
+.badge{font-size:10px;font-weight:600;padding:3px 9px;border-radius:20px;letter-spacing:0.1px}
+/* payment: green = paid, blue = invoice, red = unpaid */
+.bg{background:#D4EDDA;color:#2D6A35;border:1px solid rgba(45,106,53,.18)}
+.ba{background:#FDE8C8;color:#8A5A10;border:1px solid rgba(138,90,16,.18)}
+.br{background:#FAD9D9;color:#922A2A;border:1px solid rgba(146,42,42,.18)}
+.bb{background:#D6E8FA;color:#2A5090;border:1px solid rgba(42,80,144,.18)}
+.bgr{background:#EBE7E1;color:#6E625A;border:1px solid rgba(110,98,90,.15)}
+.bbx{background:#F5DCEA;color:#7D2442;border:1px solid rgba(125,36,66,.18)}
+.bpu{background:#E8E0F5;color:#5A3A90;border:1px solid rgba(90,58,144,.18)}
 .card-meta{font-size:11px;color:var(--muted);margin-right:auto}
 .card-notes{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.4;border-top:1px solid var(--border);padding-top:5px}
 
@@ -201,6 +202,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 /* DUP BTN */
 .dup-btn{font-size:13px;background:none;border:none;cursor:pointer;opacity:.3;padding:2px 3px;border-radius:4px;flex-shrink:0;line-height:1}
 .dup-btn:active{opacity:1;transform:scale(.9)}
+
+/* PROJECT STATUS badges - distinct from payment */
+.bov{background:#E2EDD8;color:#3A5E28;border:1px solid rgba(58,94,40,.18)} /* בוצע - olive */
+.bip{background:#FDF0D8;color:#7A4E10;border:1px solid rgba(122,78,16,.18)} /* בתהליך - warm amber */
 </style>
 </head>
 <body>
@@ -576,8 +581,12 @@ function catBadge(c){
   const m = {קמפיין:'bb', אירוע:'bg', עמלות:'ba', שונה:'bgr'};
   return `<span class="badge ${m[c]||'bgr'}">${c}</span>`;
 }
-function spBadge(s){ const m={'טרם החל':'bgr','בתהליך':'ba','בוצע':'bg'}; return `<span class="badge ${m[s]||'bgr'}">${s}</span>` }
-function payBadge(s){ const m={'טרם שולם':'br','נשלחה דרישת תשלום':'bb','שולם במלואו':'bg'}; return `<span class="badge ${m[s]||'bgr'}">${s}</span>` }
+function spBadge(s){ const m={'טרם החל':'bgr','בתהליך':'bip','בוצע':'bov'}; return `<span class="badge ${m[s]||'bgr'}">${s}</span>` }
+function payBadge(s){
+  const cls={'טרם שולם':'br','נשלחה דרישת תשלום':'bb','שולם במלואו':'bg'};
+  const pre={'טרם שולם':'','נשלחה דרישת תשלום':'📤 ','שולם במלואו':'✓ '};
+  return `<span class="badge ${cls[s]||'bgr'}">${(pre[s]||'')+s}</span>`;
+}
 
 function esc(s){return (s||'').replace(/'/g,"\\'");}
 
