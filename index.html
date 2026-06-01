@@ -206,6 +206,13 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 /* PROJECT STATUS badges - distinct from payment */
 .bov{background:#E2EDD8;color:#3A5E28;border:1px solid rgba(58,94,40,.18)} /* בוצע - olive */
 .bip{background:#FDF0D8;color:#7A4E10;border:1px solid rgba(122,78,16,.18)} /* בתהליך - warm amber */
+
+/* SWIPE ACTIONS */
+.swipe-wrap{position:relative;overflow:hidden;border-radius:var(--rs);margin-bottom:0}
+.swipe-bg-r,.swipe-bg-l{position:absolute;top:0;bottom:0;width:50%;display:flex;align-items:center;font-size:12px;font-weight:700;opacity:0;transition:opacity .1s;pointer-events:none}
+.swipe-bg-r{left:0;background:#D4EDDA;color:#2D6A35;padding-right:18px;justify-content:flex-end}
+.swipe-bg-l{right:0;background:#FDF0D8;color:#7A4E10;padding-left:18px;justify-content:flex-start}
+.swipe-wrap .card{position:relative;z-index:1;margin-bottom:0;will-change:transform}
 </style>
 </head>
 <body>
@@ -285,11 +292,6 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
   <button class="tab" onclick="setFilter('done',this)">שולם</button>
 </div>
 
-<div class="quick-add" id="quick-add-wrap">
-  <input class="qa-name" id="qa-name" type="text" placeholder="הוספה מהירה — שם פרויקט" onkeydown="if(event.key==='Enter')document.getElementById('qa-amount').focus()">
-  <input class="qa-amount" id="qa-amount" type="number" placeholder="₪" inputmode="decimal" onkeydown="if(event.key==='Enter')quickAdd()">
-  <button class="qa-btn" onclick="quickAdd()">+</button>
-</div>
 
 <div class="search-wrap" id="search-wrap">
   <input class="search-input" id="search" type="text" placeholder="🔍  חיפוש לפי שם, לקוח או קטגוריה..." oninput="render()">
@@ -614,7 +616,6 @@ function toggleMonth(key){
 // ── GRAPH VIEW
 function renderGraph(){
   document.getElementById('search-wrap').style.display='none';
-  document.getElementById('quick-add-wrap').style.display='none';
   const groups = {};
   data.forEach(p=>{
     if(!p.exec) return;
@@ -724,6 +725,7 @@ function renderMonths(){
       ${isOpen?`<div class="month-cards">${cardsHtml}</div>`:''}
     </div>`;
   }).join('');
+  attachSwipes();
 }
 
 function cardHtml(p, freq){
@@ -738,7 +740,7 @@ function cardHtml(p, freq){
   // Effort
   const ef=getEffort(p.id);
   const efBadge=ef?`<span class="effort-badge">${'⭐'.repeat(ef)}</span>`:'';
-  return `<div class="card${ageClass}" onclick="openModal('${p.id}')">
+  return `<div class="swipe-wrap"><div class="swipe-bg-r">✓ שולם</div><div class="swipe-bg-l">◐ בתהליך</div><div class="card${ageClass}" data-pid="${p.id}" onclick="openModal('${p.id}')">
     <div class="card-top">
       <div class="card-name">${p.name}${isRecurring?'<span style="color:var(--amber);font-size:10px;margin-right:5px" title="לקוח חוזר"> ↺</span>':''}</div>
       ${p.amount?`<div class="card-amount">${fmt(p.amount)}</div>`:''}
@@ -749,7 +751,7 @@ function cardHtml(p, freq){
       ${p.client?`<span class="card-meta"><span class="client-name-link" onclick="event.stopPropagation();showClient('${esc(p.client)}')">${p.client}</span>${p.exec?' · '+fmtDate(p.exec):''}</span>`:(p.exec?`<span class="card-meta">${fmtDate(p.exec)}</span>`:'')}
     </div>
     ${p.notes?`<div class="card-notes">💬 ${p.notes}</div>`:''}
-  </div>`;
+  </div></div>`;
 }
 
 function render(){
@@ -825,7 +827,6 @@ function render(){
   if(filter==='graph'){ renderGraph(); return; }
 
   document.getElementById('search-wrap').style.display = '';
-  document.getElementById('quick-add-wrap').style.display = '';
   const freq = clientFreqMap();
   const filtered = getFiltered().sort((a,b)=>{
     if(!a.exec&&!b.exec) return 0; if(!a.exec) return 1; if(!b.exec) return -1;
@@ -838,6 +839,7 @@ function render(){
   const list = document.getElementById('list');
   if(!filtered.length){ list.innerHTML=`<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">אין פרויקטים</div><div class="empty-sub">לחצי על ➕ כדי להתחיל</div></div>`; return; }
   list.innerHTML = filtered.map(p=>cardHtml(p,freq)).join('');
+  attachSwipes();
 }
 
 function setFilter(f, btn){
@@ -1019,6 +1021,67 @@ function dupProject(id,e){
   loadEffort(id);
   document.getElementById('overlay').classList.add('open');
   setTimeout(()=>document.getElementById('f-name').focus(),350);
+}
+
+
+// ── SWIPE ACTIONS
+function quickPayStatus(pid,status){
+  const i=data.findIndex(p=>p.id===pid);
+  if(i===-1) return;
+  data[i].pay=status;
+  persistLocal();
+  render();
+  syncProject(data[i]);
+}
+function quickSpStatus(pid,status){
+  const i=data.findIndex(p=>p.id===pid);
+  if(i===-1) return;
+  data[i].sp=status;
+  persistLocal();
+  render();
+  syncProject(data[i]);
+}
+function attachSwipes(){
+  document.querySelectorAll('.swipe-wrap').forEach(wrap=>{
+    const card=wrap.querySelector('.card');
+    if(!card||card._sw) return;
+    card._sw=true;
+    const pid=card.dataset.pid;
+    const rBg=wrap.querySelector('.swipe-bg-r');
+    const lBg=wrap.querySelector('.swipe-bg-l');
+    const THRESH=72;
+    let sx=0,sy=0,swiping=false,dx=0;
+    card.addEventListener('touchstart',e=>{
+      sx=e.touches[0].clientX; sy=e.touches[0].clientY;
+      swiping=false; dx=0;
+      card.style.transition='none';
+    },{passive:true});
+    card.addEventListener('touchmove',e=>{
+      dx=e.touches[0].clientX-sx;
+      const dy=e.touches[0].clientY-sy;
+      if(!swiping&&Math.abs(dx)>Math.abs(dy)&&Math.abs(dx)>12) swiping=true;
+      if(swiping){
+        e.preventDefault();
+        card.style.transform=`translateX(${dx*0.65}px)`;
+        if(dx>0){rBg.style.opacity=Math.min(dx/THRESH,1);lBg.style.opacity=0;}
+        else{lBg.style.opacity=Math.min(-dx/THRESH,1);rBg.style.opacity=0;}
+      }
+    },{passive:false});
+    card.addEventListener('touchend',e=>{
+      card.style.transition='transform .22s ease';
+      if(swiping&&dx>THRESH){
+        card.style.transform='translateX(105%)';
+        setTimeout(()=>{quickPayStatus(pid,'שולם במלואו');},220);
+      } else if(swiping&&dx<-THRESH){
+        card.style.transform='translateX(-105%)';
+        setTimeout(()=>{quickSpStatus(pid,'בתהליך');},220);
+      } else {
+        card.style.transform='';
+      }
+      rBg.style.opacity=0; lBg.style.opacity=0;
+      swiping=false;
+    },{passive:true});
+  });
 }
 
 // ── BOOT
