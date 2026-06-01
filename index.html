@@ -579,6 +579,8 @@ function catBadge(c){
 function spBadge(s){ const m={'טרם החל':'bgr','בתהליך':'ba','בוצע':'bg'}; return `<span class="badge ${m[s]||'bgr'}">${s}</span>` }
 function payBadge(s){ const m={'טרם שולם':'br','נשלחה דרישת תשלום':'bb','שולם במלואו':'bg'}; return `<span class="badge ${m[s]||'bgr'}">${s}</span>` }
 
+function esc(s){return (s||'').replace(/'/g,"\\'");}
+
 function getFiltered(){
   const now = new Date(); const q = getQ();
   return data.filter(p=>{
@@ -735,7 +737,7 @@ function cardHtml(p, freq){
     </div>
     <div class="card-row2">
       <div class="badges">${catBadge(p.cat)}${spBadge(p.sp||'טרם החל')}${payBadge(p.pay||'טרם שולם')}${ageChip}${efBadge}</div>
-      ${p.client?`<span class="card-meta"><span class="client-name-link" onclick="event.stopPropagation();showClient('${p.client.replace(/'/g,&quot;\\'&quot;)}')">${p.client}</span>${p.exec?' · '+fmtDate(p.exec):''}</span>`:(p.exec?`<span class="card-meta">${fmtDate(p.exec)}</span>`:'')}
+      ${p.client?`<span class="card-meta"><span class="client-name-link" onclick="event.stopPropagation();showClient('${esc(p.client)}')">${p.client}</span>${p.exec?' · '+fmtDate(p.exec):''}</span>`:(p.exec?`<span class="card-meta">${fmtDate(p.exec)}</span>`:'')}
     </div>
     ${p.notes?`<div class="card-notes">💬 ${p.notes}</div>`:''}
   </div>`;
