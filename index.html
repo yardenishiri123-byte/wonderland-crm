@@ -203,6 +203,15 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 .dup-btn{font-size:13px;background:none;border:none;cursor:pointer;opacity:.3;padding:2px 3px;border-radius:4px;flex-shrink:0;line-height:1}
 .dup-btn:active{opacity:1;transform:scale(.9)}
 
+/* QUICK PAY MENU */
+.pay-btn{cursor:pointer;transition:opacity .1s;user-select:none;-webkit-user-select:none}
+.pay-btn:active{opacity:.7}
+.qm-overlay{position:fixed;inset:0;z-index:199;background:transparent}
+#quick-menu{position:fixed;z-index:200;background:var(--white);border:1px solid var(--border);border-radius:var(--rs);box-shadow:0 4px 20px rgba(0,0,0,.18);min-width:200px;padding:4px 0;display:none}
+.qm-item{padding:11px 15px;font-size:14px;cursor:pointer;font-family:inherit;border:none;background:none;width:100%;text-align:right;color:var(--text);display:block;direction:rtl;line-height:1.3}
+.qm-item:hover,.qm-item:active{background:var(--surface)}
+.qm-item.qm-active{font-weight:700}
+
 /* PROJECT STATUS badges - distinct from payment */
 .bov{background:#E2EDD8;color:#3A5E28;border:1px solid rgba(58,94,40,.18)} /* בוצע - olive */
 .bip{background:#FDF0D8;color:#7A4E10;border:1px solid rgba(122,78,16,.18)} /* בתהליך - warm amber */
@@ -747,7 +756,7 @@ function cardHtml(p, freq){
       <button class="dup-btn" onclick="dupProject('${p.id}',event)" title="שכפל פרויקט">📋</button>
     </div>
     <div class="card-row2">
-      <div class="badges">${catBadge(p.cat)}${spBadge(p.sp||'טרם החל')}${payBadge(p.pay||'טרם שולם')}${ageChip}${efBadge}</div>
+      <div class="badges">${catBadge(p.cat)}${spBadge(p.sp||'טרם החל')}${payBadgeQ(p.pay||'טרם שולם', p.id)}${ageChip}${efBadge}</div>
       ${p.client?`<span class="card-meta"><span class="client-name-link" onclick="event.stopPropagation();showClient('${esc(p.client)}')">${p.client}</span>${p.exec?' · '+fmtDate(p.exec):''}</span>`:(p.exec?`<span class="card-meta">${fmtDate(p.exec)}</span>`:'')}
     </div>
     ${p.notes?`<div class="card-notes">💬 ${p.notes}</div>`:''}
@@ -1084,6 +1093,59 @@ function attachSwipes(){
   });
 }
 
+// ── QUICK PAY MENU
+function payBadgeQ(s, pid) {
+  const cls={'טרם שולם':'br','נשלחה דרישת תשלום':'bb','שולם במלואו':'bg'};
+  const pre={'טרם שולם':'','נשלחה דרישת תשלום':'📤 ','שולם במלואו':'✓ '};
+  return `<span class="badge ${cls[s]||'bgr'} pay-btn" onclick="showPayQuick('${pid}',event)">${(pre[s]||'')+s}</span>`;
+}
+let _qmPid = null;
+function showPayQuick(pid, e) {
+  e.stopPropagation();
+  _qmPid = pid;
+  const p = data.find(x => x.id === pid);
+  if (!p) return;
+  const options = ['טרם שולם','נשלחה דרישת תשלום','שולם במלואו'];
+  const icons = {'טרם שולם':'🔴','נשלחה דרישת תשלום':'📤','שולם במלואו':'✅'};
+  const menu = document.getElementById('quick-menu');
+  menu.innerHTML = options.map(opt => {
+    const active = p.pay === opt;
+    return `<button class="qm-item${active?' qm-active':''}" onclick="pickPay(${JSON.stringify(opt)})">`
+      + `<span style="margin-left:8px">${icons[opt]}</span>${opt}${active?' ✓':''}</button>`;
+  }).join('');
+  menu.style.display = 'block';
+  const rect = e.target.getBoundingClientRect();
+  const mh = 150, mw = 215;
+  let top = rect.bottom + 6;
+  let left = rect.left;
+  if (top + mh > window.innerHeight) top = rect.top - mh - 6;
+  if (left + mw > window.innerWidth) left = window.innerWidth - mw - 10;
+  if (left < 8) left = 8;
+  menu.style.top = top + 'px';
+  menu.style.left = left + 'px';
+  let ov = document.getElementById('qm-ov');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'qm-ov';
+    ov.className = 'qm-overlay';
+    ov.onclick = closeQuickMenu;
+    document.body.appendChild(ov);
+  }
+  ov.style.display = 'block';
+}
+function pickPay(status) {
+  closeQuickMenu();
+  if (!_qmPid) return;
+  quickPayStatus(_qmPid, status);
+}
+function closeQuickMenu() {
+  const m = document.getElementById('quick-menu');
+  if (m) m.style.display = 'none';
+  const ov = document.getElementById('qm-ov');
+  if (ov) ov.style.display = 'none';
+  _qmPid = null;
+}
+
 // ── BOOT
 if(sessionStorage.getItem('crm_auth')==='1'){
   initData();
@@ -1107,5 +1169,6 @@ if(sessionStorage.getItem('crm_auth')==='1'){
   </div>
 </div>
 
+<div id="quick-menu"></div>
 </body>
 </html>
