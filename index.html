@@ -756,7 +756,7 @@ function cardHtml(p, freq){
       <button class="dup-btn" onclick="dupProject('${p.id}',event)" title="שכפל פרויקט">📋</button>
     </div>
     <div class="card-row2">
-      <div class="badges">${catBadge(p.cat)}${spBadge(p.sp||'טרם החל')}${payBadgeQ(p.pay||'טרם שולם', p.id)}${ageChip}${efBadge}</div>
+      <div class="badges">${catBadge(p.cat)}${spBadgeQ(p.sp||'טרם החל', p.id)}${payBadgeQ(p.pay||'טרם שולם', p.id)}${ageChip}${efBadge}</div>
       ${p.client?`<span class="card-meta"><span class="client-name-link" onclick="event.stopPropagation();showClient('${esc(p.client)}')">${p.client}</span>${p.exec?' · '+fmtDate(p.exec):''}</span>`:(p.exec?`<span class="card-meta">${fmtDate(p.exec)}</span>`:'')}
     </div>
     ${p.notes?`<div class="card-notes">💬 ${p.notes}</div>`:''}
@@ -1093,7 +1093,51 @@ function attachSwipes(){
   });
 }
 
-// ── QUICK PAY MENU
+// ── QUICK STATUS MENUS
+function spBadgeQ(s, pid) {
+  const m = {'טרם החל':'bgr','בתהליך':'bip','בוצע':'bov'};
+  return `<span class="badge ${m[s]||'bgr'} pay-btn" onclick="showSpQuick('${pid}',event)">${s}</span>`;
+}
+let _qmSpPid = null;
+function showSpQuick(pid, e) {
+  e.stopPropagation();
+  _qmSpPid = pid;
+  const p = data.find(x => x.id === pid);
+  if (!p) return;
+  const options = ['טרם החל','בתהליך','בוצע'];
+  const icons = {'טרם החל':'⬜','בתהליך':'🔄','בוצע':'✅'};
+  const menu = document.getElementById('quick-menu');
+  menu.innerHTML = options.map(opt => {
+    const active = (p.sp||'טרם החל') === opt;
+    return `<button class="qm-item${active?' qm-active':''}" onclick="pickSp(${JSON.stringify(opt)})">`
+      + `<span style="margin-left:8px">${icons[opt]}</span>${opt}${active?' ✓':''}</button>`;
+  }).join('');
+  menu.style.display = 'block';
+  const rect = e.target.getBoundingClientRect();
+  const mh = 150, mw = 160;
+  let top = rect.bottom + 6;
+  let left = rect.left;
+  if (top + mh > window.innerHeight) top = rect.top - mh - 6;
+  if (left + mw > window.innerWidth) left = window.innerWidth - mw - 10;
+  if (left < 8) left = 8;
+  menu.style.top = top + 'px';
+  menu.style.left = left + 'px';
+  let ov = document.getElementById('qm-ov');
+  if (!ov) {
+    ov = document.createElement('div');
+    ov.id = 'qm-ov';
+    ov.className = 'qm-overlay';
+    ov.onclick = closeQuickMenu;
+    document.body.appendChild(ov);
+  }
+  ov.style.display = 'block';
+}
+function pickSp(status) {
+  closeQuickMenu();
+  if (!_qmSpPid) return;
+  quickSpStatus(_qmSpPid, status);
+}
+
 function payBadgeQ(s, pid) {
   const cls={'טרם שולם':'br','נשלחה דרישת תשלום':'bb','שולם במלואו':'bg'};
   const pre={'טרם שולם':'','נשלחה דרישת תשלום':'📤 ','שולם במלואו':'✓ '};
