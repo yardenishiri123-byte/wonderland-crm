@@ -218,6 +218,25 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 .qm-item.qm-active{font-weight:700;color:var(--bordeaux)}
 .qm-check{margin-right:auto;font-size:13px;color:var(--bordeaux)}
 
+/* TOAST */
+.toast{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(10px);background:#2A2520;color:#fff;border-radius:var(--r);padding:11px 16px;font-size:14px;display:flex;align-items:center;gap:12px;z-index:300;opacity:0;transition:opacity .22s,transform .22s;pointer-events:none;max-width:calc(100% - 36px)}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+.toast-undo{background:none;border:none;color:#F0C070;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;padding:0;white-space:nowrap}
+/* SWIPE HINT */
+.swipe-hint{position:fixed;bottom:76px;left:50%;transform:translateX(-50%) translateY(10px);background:rgba(42,37,32,.9);color:#fff;border-radius:var(--r);padding:10px 14px;font-size:13px;display:flex;align-items:center;gap:10px;z-index:250;opacity:0;transition:opacity .3s,transform .3s;pointer-events:none;max-width:calc(100% - 36px);white-space:nowrap}
+.swipe-hint.show{opacity:1;transform:translateX(-50%) translateY(0);pointer-events:auto}
+.sh-close{background:none;border:none;color:rgba(255,255,255,.6);font-size:16px;cursor:pointer;padding:0 0 0 4px;line-height:1;flex-shrink:0}
+/* NOTE EDITOR */
+.note-overlay{position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:100;display:none;align-items:flex-end;justify-content:center}
+.note-overlay.open{display:flex}
+.note-modal{background:var(--bg);border-radius:20px 20px 0 0;padding:20px 18px 44px;width:100%;max-width:600px}
+.note-project-name{font-size:13px;color:var(--muted);margin-bottom:12px}
+.note-edit-btn{font-size:11px;background:none;border:none;cursor:pointer;color:var(--muted);padding:2px 4px;opacity:.5;flex-shrink:0;font-family:inherit}
+.note-edit-btn:active{opacity:1}
+/* QUICK ADD category */
+.qa-cat{width:74px;background:var(--surface);border:1px solid var(--border);border-radius:var(--rs);padding:9px 5px;font-size:12px;color:var(--muted);font-family:inherit;direction:rtl;-webkit-appearance:none;outline:none}
+.qa-cat:focus{border-color:var(--text);color:var(--text)}
+
 /* PROJECT STATUS badges - distinct from payment */
 .bov{background:#E2EDD8;color:#3A5E28;border:1px solid rgba(58,94,40,.18)} /* בוצע - olive */
 .bip{background:#FDF0D8;color:#7A4E10;border:1px solid rgba(122,78,16,.18)} /* בתהליך - warm amber */
@@ -312,6 +331,18 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
   <input class="search-input" id="search" type="text" placeholder="🔍  חיפוש לפי שם, לקוח או קטגוריה..." oninput="render()">
 </div>
 
+<div class="quick-add" id="quick-add-wrap">
+  <input class="qa-name" id="qa-name" type="text" placeholder="שם הפרויקט..." onkeydown="if(event.key==='Enter')quickAdd()">
+  <select class="qa-cat" id="qa-cat">
+    <option value="">קטג׳</option>
+    <option>קמפיין</option>
+    <option>אירוע</option>
+    <option>עמלות</option>
+    <option>שונה</option>
+  </select>
+  <input class="qa-amount" id="qa-amount" type="number" placeholder="₪" inputmode="decimal" onkeydown="if(event.key==='Enter')quickAdd()">
+  <button class="qa-btn" onclick="quickAdd()">+</button>
+</div>
 <div class="list" id="list"></div>
 
 <button class="fab" onclick="openModal()">+</button>
@@ -765,7 +796,7 @@ function cardHtml(p, freq){
       <div class="badges">${catBadge(p.cat)}${spBadgeQ(p.sp||'טרם החל', p.id)}${payBadgeQ(p.pay||'טרם שולם', p.id)}${ageChip}${efBadge}</div>
       ${p.client?`<span class="card-meta"><span class="client-name-link" onclick="event.stopPropagation();showClient('${esc(p.client)}')">${p.client}</span>${p.exec?' · '+fmtDate(p.exec):''}</span>`:(p.exec?`<span class="card-meta">${fmtDate(p.exec)}</span>`:'')}
     </div>
-    ${p.notes?`<div class="card-notes">💬 ${p.notes}</div>`:''}
+    ${p.notes?`<div class="card-notes" style="display:flex;align-items:flex-start;gap:4px"><span style="flex:1">💬 ${p.notes}</span><button class="note-edit-btn" onclick="openNoteEditor('${p.id}',event)">✏️</button></div>`:`<button class="note-edit-btn" style="margin-top:4px" onclick="openNoteEditor('${p.id}',event)">+ הערה</button>`}
   </div></div>`;
 }
 
@@ -855,6 +886,8 @@ function render(){
   if(!filtered.length){ list.innerHTML=`<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">אין פרויקטים</div><div class="empty-sub">לחצי על ➕ כדי להתחיל</div></div>`; return; }
   list.innerHTML = filtered.map(p=>cardHtml(p,freq)).join('');
   attachSwipes();
+  attachLongPress();
+  if(filter==='month'||filter==='unpaid') maybeShowSwipeHint();
 }
 
 function setFilter(f, btn){
@@ -1043,18 +1076,22 @@ function dupProject(id,e){
 function quickPayStatus(pid,status){
   const i=data.findIndex(p=>p.id===pid);
   if(i===-1) return;
+  const prev=data[i].pay;
   data[i].pay=status;
   persistLocal();
   render();
   syncProject(data[i]);
+  showToast('💳 '+status, ()=>quickPayStatus(pid,prev));
 }
 function quickSpStatus(pid,status){
   const i=data.findIndex(p=>p.id===pid);
   if(i===-1) return;
+  const prev=data[i].sp;
   data[i].sp=status;
   persistLocal();
   render();
   syncProject(data[i]);
+  showToast('🔄 '+status, ()=>quickSpStatus(pid,prev));
 }
 function attachSwipes(){
   document.querySelectorAll('.swipe-wrap').forEach(wrap=>{
@@ -1219,6 +1256,121 @@ function closeQuickMenu() {
   _qmSpPid = null;
 }
 
+
+// ── TOAST
+let _toastTimer=null;
+function showToast(msg, undoFn){
+  document.getElementById('toast-msg').textContent=msg;
+  const btn=document.getElementById('toast-undo');
+  btn.style.display=undoFn?'inline':'none';
+  if(undoFn) btn.onclick=()=>{clearTimeout(_toastTimer);hideToast();undoFn();};
+  document.getElementById('toast').classList.add('show');
+  clearTimeout(_toastTimer);
+  _toastTimer=setTimeout(hideToast,3000);
+}
+function hideToast(){document.getElementById('toast').classList.remove('show');}
+
+// ── SWIPE HINT (once per device)
+function maybeShowSwipeHint(){
+  if(localStorage.getItem('crm_swipe_shown')) return;
+  const hint=document.getElementById('swipe-hint');
+  hint.classList.add('show');
+  localStorage.setItem('crm_swipe_shown','1');
+  setTimeout(()=>hint.classList.remove('show'),5000);
+}
+function dismissSwipeHint(){document.getElementById('swipe-hint').classList.remove('show');}
+
+// ── NOTE EDITOR
+function openNoteEditor(pid,e){
+  if(e) e.stopPropagation();
+  const p=data.find(x=>x.id===pid);
+  if(!p) return;
+  document.getElementById('note-pid').value=pid;
+  document.getElementById('note-project-name').textContent=p.name;
+  document.getElementById('note-text').value=p.notes||'';
+  document.getElementById('note-overlay').classList.add('open');
+  setTimeout(()=>document.getElementById('note-text').focus(),350);
+}
+function closeNoteEditor(){document.getElementById('note-overlay').classList.remove('open');}
+async function saveNote(){
+  const pid=document.getElementById('note-pid').value;
+  const notes=document.getElementById('note-text').value.trim();
+  const i=data.findIndex(x=>x.id===pid);
+  if(i===-1) return;
+  data[i].notes=notes;
+  persistLocal();
+  render();
+  closeNoteEditor();
+  showToast('הערה נשמרה ✓');
+  await syncProject(data[i]);
+}
+
+// ── LONG PRESS → action sheet
+function attachLongPress(){
+  document.querySelectorAll('.card[data-pid]').forEach(card=>{
+    if(card._lp) return;
+    card._lp=true;
+    const pid=card.dataset.pid;
+    let timer=null, moved=false, sx=0, sy=0;
+    const cancel=()=>{clearTimeout(timer); card.classList.remove('pressing');};
+    card.addEventListener('touchstart',e=>{
+      sx=e.touches[0].clientX; sy=e.touches[0].clientY; moved=false;
+      timer=setTimeout(()=>{
+        if(!moved){ card.classList.remove('pressing'); showCardActions(pid); }
+      },520);
+      card.classList.add('pressing');
+    },{passive:true});
+    card.addEventListener('touchmove',e=>{
+      if(Math.abs(e.touches[0].clientX-sx)>8||Math.abs(e.touches[0].clientY-sy)>8){moved=true;cancel();}
+    },{passive:true});
+    card.addEventListener('touchend',cancel,{passive:true});
+    card.addEventListener('touchcancel',cancel,{passive:true});
+  });
+}
+
+function showCardActions(pid){
+  const p=data.find(x=>x.id===pid);
+  if(!p) return;
+  const menu=document.getElementById('quick-menu');
+  menu.innerHTML=
+    '<div class="qm-title">'+p.name+'</div>'+
+    '<button class="qm-item" onclick="_pickQm(\'edit\')"><span>✏️</span><span>עריכה מלאה</span></button>'+
+    '<button class="qm-item" onclick="_pickQm(\'pay\')"><span>💳</span><span>שנה תשלום</span></button>'+
+    '<button class="qm-item" onclick="_pickQm(\'sp\')"><span>🔄</span><span>שנה סטטוס פרויקט</span></button>'+
+    '<button class="qm-item" onclick="_pickQm(\'note\')"><span>📝</span><span>ערוך הערה</span></button>'+
+    '<button class="qm-item" onclick="_pickQm(\'dup\')"><span>📋</span><span>שכפל פרויקט</span></button>'+
+    '<button class="qm-item" style="color:var(--red)" onclick="_pickQm(\'del\')"><span>🗑️</span><span>מחיקה</span></button>';
+  menu._onPick=opt=>{
+    if(opt==='edit') openModal(pid);
+    else if(opt==='pay'){
+      _qmPid=pid;
+      const fakeE={stopPropagation:()=>{},preventDefault:()=>{},target:{getBoundingClientRect:()=>({bottom:window.innerHeight*0.5,top:window.innerHeight*0.5,left:window.innerWidth*0.5,right:window.innerWidth*0.5})}};
+      showPayQuick(pid,fakeE);
+      return;
+    }
+    else if(opt==='sp'){
+      _qmSpPid=pid;
+      const fakeE={stopPropagation:()=>{},preventDefault:()=>{},target:{getBoundingClientRect:()=>({bottom:window.innerHeight*0.5,top:window.innerHeight*0.5,left:window.innerWidth*0.5,right:window.innerWidth*0.5})}};
+      showSpQuick(pid,fakeE);
+      return;
+    }
+    else if(opt==='note') openNoteEditor(pid,null);
+    else if(opt==='dup') dupProject(pid,null);
+    else if(opt==='del'){
+      if(confirm('למחוק את הפרויקט הזה?')){
+        data=data.filter(x=>x.id!==pid);
+        persistLocal(); render(); deleteProject(pid);
+      }
+    }
+  };
+  let ov=document.getElementById('qm-ov');
+  if(!ov){ov=document.createElement('div');ov.id='qm-ov';ov.className='qm-overlay';ov.onclick=closeQuickMenu;document.body.appendChild(ov);}
+  ov.style.display='block';
+  menu.classList.add('sheet');
+  menu.style.display='block';
+  menu.style.top=''; menu.style.left='';
+}
+
 // ── BOOT
 if(sessionStorage.getItem('crm_auth')==='1'){
   initData();
@@ -1243,5 +1395,30 @@ if(sessionStorage.getItem('crm_auth')==='1'){
 </div>
 
 <div id="quick-menu"></div>
+
+<!-- TOAST -->
+<div class="toast" id="toast">
+  <span id="toast-msg"></span>
+  <button class="toast-undo" id="toast-undo" style="display:none">ביטול ↩</button>
+</div>
+
+<!-- SWIPE HINT (shows once) -->
+<div class="swipe-hint" id="swipe-hint">
+  <span>💡 החלק ימינה ✓ שולם &nbsp;|&nbsp; שמאלה ◐ בתהליך</span>
+  <button class="sh-close" onclick="dismissSwipeHint()">✕</button>
+</div>
+
+<!-- NOTE EDITOR -->
+<div class="note-overlay" id="note-overlay" onclick="if(event.target===this)closeNoteEditor()">
+  <div class="note-modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">✏️ הערה</div>
+    <div class="note-project-name" id="note-project-name"></div>
+    <input type="hidden" id="note-pid">
+    <textarea class="ft" id="note-text" rows="4" placeholder="כתבי הערה..."></textarea>
+    <button class="btn-save" style="margin-top:10px" onclick="saveNote()">שמירה</button>
+  </div>
+</div>
+
 </body>
 </html>
