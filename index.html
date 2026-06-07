@@ -203,14 +203,20 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 .dup-btn{font-size:13px;background:none;border:none;cursor:pointer;opacity:.3;padding:2px 3px;border-radius:4px;flex-shrink:0;line-height:1}
 .dup-btn:active{opacity:1;transform:scale(.9)}
 
-/* QUICK PAY MENU */
-.pay-btn{cursor:pointer;transition:opacity .1s;user-select:none;-webkit-user-select:none}
-.pay-btn:active{opacity:.7}
-.qm-overlay{position:fixed;inset:0;z-index:199;background:transparent}
-#quick-menu{position:fixed;z-index:200;background:var(--white);border:1px solid var(--border);border-radius:var(--rs);box-shadow:0 4px 20px rgba(0,0,0,.18);min-width:200px;padding:4px 0;display:none}
-.qm-item{padding:11px 15px;font-size:14px;cursor:pointer;font-family:inherit;border:none;background:none;width:100%;text-align:right;color:var(--text);display:block;direction:rtl;line-height:1.3}
-.qm-item:hover,.qm-item:active{background:var(--surface)}
-.qm-item.qm-active{font-weight:700}
+/* QUICK STATUS MENU */
+.pay-btn{cursor:pointer;transition:opacity .1s;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.pay-btn:active{opacity:.6;transform:scale(.95)}
+/* overlay blocks taps outside */
+.qm-overlay{position:fixed;inset:0;z-index:199;background:rgba(0,0,0,.25)}
+/* desktop dropdown */
+#quick-menu{position:fixed;z-index:200;background:var(--white);border:1px solid var(--border);border-radius:var(--r);box-shadow:0 6px 24px rgba(0,0,0,.2);min-width:210px;padding:5px 0;display:none}
+/* mobile bottom sheet override */
+#quick-menu.sheet{top:auto!important;left:0!important;right:0!important;bottom:0;width:100%;min-width:unset;border-radius:20px 20px 0 0;border:none;padding:0 0 env(safe-area-inset-bottom,10px)}
+.qm-title{font-size:12px;color:var(--muted);text-align:center;padding:12px 16px 6px;border-bottom:1px solid var(--border);margin-bottom:4px}
+.qm-item{padding:14px 20px;font-size:15px;cursor:pointer;font-family:inherit;border:none;background:none;width:100%;text-align:right;color:var(--text);display:flex;align-items:center;gap:10px;direction:rtl;line-height:1.3}
+.qm-item:active{background:var(--surface)}
+.qm-item.qm-active{font-weight:700;color:var(--bordeaux)}
+.qm-check{margin-right:auto;font-size:13px;color:var(--bordeaux)}
 
 /* PROJECT STATUS badges - distinct from payment */
 .bov{background:#E2EDD8;color:#3A5E28;border:1px solid rgba(58,94,40,.18)} /* בוצע - olive */
@@ -1094,6 +1100,8 @@ function attachSwipes(){
 }
 
 // ── QUICK STATUS MENUS
+const isMobile = () => window.innerWidth <= 600 || ('ontouchstart' in window);
+
 function spBadgeQ(s, pid) {
   const m = {'טרם החל':'bgr','בתהליך':'bip','בוצע':'bov'};
   return `<span class="badge ${m[s]||'bgr'} pay-btn" onclick="showSpQuick('${pid}',event)">${s}</span>`;
@@ -1101,41 +1109,26 @@ function spBadgeQ(s, pid) {
 let _qmSpPid = null;
 function showSpQuick(pid, e) {
   e.stopPropagation();
+  e.preventDefault();
   _qmSpPid = pid;
   const p = data.find(x => x.id === pid);
   if (!p) return;
   const options = ['טרם החל','בתהליך','בוצע'];
   const icons = {'טרם החל':'⬜','בתהליך':'🔄','בוצע':'✅'};
-  const menu = document.getElementById('quick-menu');
-  menu.innerHTML = options.map(opt => {
-    const active = (p.sp||'טרם החל') === opt;
-    return `<button class="qm-item${active?' qm-active':''}" onclick="pickSp(${JSON.stringify(opt)})">`
-      + `<span style="margin-left:8px">${icons[opt]}</span>${opt}${active?' ✓':''}</button>`;
-  }).join('');
-  menu.style.display = 'block';
-  const rect = e.target.getBoundingClientRect();
-  const mh = 150, mw = 160;
-  let top = rect.bottom + 6;
-  let left = rect.left;
-  if (top + mh > window.innerHeight) top = rect.top - mh - 6;
-  if (left + mw > window.innerWidth) left = window.innerWidth - mw - 10;
-  if (left < 8) left = 8;
-  menu.style.top = top + 'px';
-  menu.style.left = left + 'px';
-  let ov = document.getElementById('qm-ov');
-  if (!ov) {
-    ov = document.createElement('div');
-    ov.id = 'qm-ov';
-    ov.className = 'qm-overlay';
-    ov.onclick = closeQuickMenu;
-    document.body.appendChild(ov);
-  }
-  ov.style.display = 'block';
+  _openQuickMenu(
+    'סטטוס פרויקט',
+    options,
+    icons,
+    p.sp||'טרם החל',
+    opt => pickSp(opt),
+    e
+  );
 }
 function pickSp(status) {
+  const pid = _qmSpPid;
   closeQuickMenu();
-  if (!_qmSpPid) return;
-  quickSpStatus(_qmSpPid, status);
+  if (!pid) return;
+  quickSpStatus(pid, status);
 }
 
 function payBadgeQ(s, pid) {
@@ -1146,27 +1139,36 @@ function payBadgeQ(s, pid) {
 let _qmPid = null;
 function showPayQuick(pid, e) {
   e.stopPropagation();
+  e.preventDefault();
   _qmPid = pid;
   const p = data.find(x => x.id === pid);
   if (!p) return;
   const options = ['טרם שולם','נשלחה דרישת תשלום','שולם במלואו'];
   const icons = {'טרם שולם':'🔴','נשלחה דרישת תשלום':'📤','שולם במלואו':'✅'};
+  _openQuickMenu(
+    'סטטוס תשלום',
+    options,
+    icons,
+    p.pay||'טרם שולם',
+    opt => pickPay(opt),
+    e
+  );
+}
+
+/* shared menu builder */
+function _openQuickMenu(title, options, icons, current, onPick, e) {
   const menu = document.getElementById('quick-menu');
-  menu.innerHTML = options.map(opt => {
-    const active = p.pay === opt;
-    return `<button class="qm-item${active?' qm-active':''}" onclick="pickPay(${JSON.stringify(opt)})">`
-      + `<span style="margin-left:8px">${icons[opt]}</span>${opt}${active?' ✓':''}</button>`;
-  }).join('');
-  menu.style.display = 'block';
-  const rect = e.target.getBoundingClientRect();
-  const mh = 150, mw = 215;
-  let top = rect.bottom + 6;
-  let left = rect.left;
-  if (top + mh > window.innerHeight) top = rect.top - mh - 6;
-  if (left + mw > window.innerWidth) left = window.innerWidth - mw - 10;
-  if (left < 8) left = 8;
-  menu.style.top = top + 'px';
-  menu.style.left = left + 'px';
+  menu.innerHTML = `<div class="qm-title">${title}</div>` +
+    options.map(opt => {
+      const active = current === opt;
+      return `<button class="qm-item${active?' qm-active':''}" onclick="_pickQm(${JSON.stringify(opt)})">`
+        + `<span>${icons[opt]}</span><span>${opt}</span>`
+        + (active ? '<span class="qm-check">✓</span>' : '')
+        + '</button>';
+    }).join('');
+  menu._onPick = onPick;
+
+  /* overlay */
   let ov = document.getElementById('qm-ov');
   if (!ov) {
     ov = document.createElement('div');
@@ -1176,18 +1178,45 @@ function showPayQuick(pid, e) {
     document.body.appendChild(ov);
   }
   ov.style.display = 'block';
+  menu.style.display = 'block';
+
+  if (isMobile()) {
+    /* bottom sheet */
+    menu.classList.add('sheet');
+    menu.style.top = '';
+    menu.style.left = '';
+  } else {
+    /* desktop dropdown near badge */
+    menu.classList.remove('sheet');
+    const rect = e.target.getBoundingClientRect();
+    const mw = menu.offsetWidth || 220;
+    const mh = menu.offsetHeight || 160;
+    let top = rect.bottom + 6;
+    let left = rect.right - mw;
+    if (top + mh > window.innerHeight) top = rect.top - mh - 6;
+    if (left < 8) left = 8;
+    if (left + mw > window.innerWidth) left = window.innerWidth - mw - 8;
+    menu.style.top = top + 'px';
+    menu.style.left = left + 'px';
+  }
+}
+function _pickQm(opt) {
+  const menu = document.getElementById('quick-menu');
+  if (menu._onPick) menu._onPick(opt);
 }
 function pickPay(status) {
+  const pid = _qmPid;
   closeQuickMenu();
-  if (!_qmPid) return;
-  quickPayStatus(_qmPid, status);
+  if (!pid) return;
+  quickPayStatus(pid, status);
 }
 function closeQuickMenu() {
   const m = document.getElementById('quick-menu');
-  if (m) m.style.display = 'none';
+  if (m) { m.style.display = 'none'; m.classList.remove('sheet'); }
   const ov = document.getElementById('qm-ov');
   if (ov) ov.style.display = 'none';
   _qmPid = null;
+  _qmSpPid = null;
 }
 
 // ── BOOT
