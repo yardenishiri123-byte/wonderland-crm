@@ -1195,15 +1195,17 @@ function showPayQuick(pid, e) {
 /* shared menu builder */
 function _openQuickMenu(title, options, icons, current, onPick, e) {
   const menu = document.getElementById('quick-menu');
+  // store options on the element so _pickQm can look them up by index (avoids quote-escaping issues)
+  menu._opts = options;
+  menu._onPick = onPick;
   menu.innerHTML = `<div class="qm-title">${title}</div>` +
-    options.map(opt => {
+    options.map((opt, idx) => {
       const active = current === opt;
-      return `<button class="qm-item${active?' qm-active':''}" onclick="_pickQm(${JSON.stringify(opt)})">`
+      return `<button class="qm-item${active?' qm-active':''}" onclick="_pickQm(${idx})">`
         + `<span>${icons[opt]}</span><span>${opt}</span>`
         + (active ? '<span class="qm-check">✓</span>' : '')
         + '</button>';
     }).join('');
-  menu._onPick = onPick;
 
   /* overlay */
   let ov = document.getElementById('qm-ov');
@@ -1237,8 +1239,9 @@ function _openQuickMenu(title, options, icons, current, onPick, e) {
     menu.style.left = left + 'px';
   }
 }
-function _pickQm(opt) {
+function _pickQm(idx) {
   const menu = document.getElementById('quick-menu');
+  const opt = menu._opts ? menu._opts[idx] : idx;
   if (menu._onPick) menu._onPick(opt);
 }
 function pickPay(status) {
@@ -1332,6 +1335,7 @@ function showCardActions(pid){
   const p=data.find(x=>x.id===pid);
   if(!p) return;
   const menu=document.getElementById('quick-menu');
+  menu._opts=null; // card actions use string keys, not index
   menu.innerHTML=
     '<div class="qm-title">'+p.name+'</div>'+
     '<button class="qm-item" onclick="_pickQm(\'edit\')"><span>✏️</span><span>עריכה מלאה</span></button>'+
