@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8">
@@ -12,6 +12,7 @@
 <meta http-equiv="Expires" content="0">
 <title>💼 ניהול פרויקטים</title>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 :root{
@@ -247,6 +248,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 .swipe-bg-r{left:0;background:#D4EDDA;color:#2D6A35;padding-right:18px;justify-content:flex-end}
 .swipe-bg-l{right:0;background:#FDF0D8;color:#7A4E10;padding-left:18px;justify-content:flex-start}
 .swipe-wrap .card{position:relative;z-index:1;margin-bottom:0;will-change:transform}
+
+/* BANK IMPORT */
+.bi-drop{border:2px dashed var(--border);border-radius:var(--r);padding:32px 20px;text-align:center;cursor:pointer;transition:border-color .15s,background .15s;margin-bottom:14px}
+.bi-drop:hover,.bi-drop.drag{border-color:var(--bordeaux);background:var(--bordeaux-bg)}
+.bi-drop-icon{font-size:36px;margin-bottom:8px}
+.bi-drop-text{font-size:15px;font-weight:600;color:var(--text);margin-bottom:4px}
+.bi-drop-sub{font-size:12px;color:var(--muted)}
+.bi-tip{font-size:12px;color:var(--muted);text-align:center;margin-bottom:6px}
+.bi-section-title{font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin:14px 0 6px}
+.bi-row{display:flex;align-items:flex-start;gap:10px;padding:9px 10px;border-radius:var(--rs);border:1px solid var(--border);background:var(--surface);margin-bottom:5px}
+.bi-row label{cursor:pointer;flex:1}
+.bi-row input[type=checkbox]{margin-top:3px;flex-shrink:0;width:16px;height:16px;accent-color:var(--green)}
+.bi-proj{font-size:13px;font-weight:600;color:var(--text);display:flex;align-items:center;gap:5px;flex-wrap:wrap}
+.bi-client{font-size:11px;font-weight:400;color:var(--muted)}
+.bi-amt{font-size:12px;font-weight:700;color:var(--green);margin-right:auto}
+.bi-bank{font-size:11px;color:var(--muted);margin-top:2px}
+.bi-row-missing{background:var(--amber-bg);border-color:rgba(160,114,48,.2);opacity:.85}
+.bi-row-missing .bi-proj{color:var(--amber)}
+.bi-confirm-btn{width:100%;background:var(--green);color:#fff;border:none;border-radius:var(--rs);padding:13px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;margin-top:10px}
+.bi-confirm-btn:active{opacity:.85}
+.bi-back{background:none;border:none;color:var(--muted);font-size:13px;cursor:pointer;font-family:inherit;padding:6px 0;display:block;width:100%;text-align:center;margin-top:6px}
 </style>
 </head>
 <body>
@@ -277,53 +299,27 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
       <div class="sync-dot"></div>
       <span class="sync-label" id="sync-label">מסונכרן</span>
     </div>
-    <button class="btn-export" onclick="exportData()">ייצוא ↓</button>
+    <button class="btn-export" onclick="showMainMenu(event)" aria-label="תפריט" style="font-size:20px;line-height:1;padding:4px 13px">⋯</button>
   </div>
 </div>
 
 <div class="summary">
   <div class="s-card">
-    <div class="s-label" id="s-label-1">סה״כ ₪</div>
-    <div class="s-val green" id="c-sum">0</div>
+    <div class="s-label">החודש</div>
+    <div class="s-val green" id="c-month-total">0</div>
   </div>
   <div class="s-card">
-    <div class="s-label" id="s-label-2">החודש ₪</div>
-    <div class="s-val green" id="c-month">0</div>
-  </div>
-  <div class="s-card">
-    <div class="s-label">לגביה</div>
+    <div class="s-label">לגבייה</div>
     <div class="s-val bordeaux" id="c-pending">0</div>
-  </div>
-  <div class="s-card">
-    <div class="s-label">פרויקטים</div>
-    <div class="s-val" id="c-total">0</div>
-  </div>
-  <div class="s-card" style="grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;padding:11px 14px">
-    <div>
-      <div class="s-label">חודש הכי טוב 🏆</div>
-      <div style="font-size:12px;color:var(--muted);margin-top:2px" id="best-month-label">—</div>
-    </div>
-    <div class="s-val bordeaux" id="best-month-val">—</div>
-  </div>
-  <div class="s-card" style="grid-column:1/-1;display:flex;justify-content:space-between;align-items:center;padding:11px 14px">
-    <div>
-      <div class="s-label">נטו משוער השנה 💰</div>
-      <div style="font-size:11px;color:var(--muted);margin-top:2px">אחרי מס הכנסה + ביטוח לאומי (~35%)</div>
-    </div>
-    <div style="text-align:left">
-      <div style="font-size:11px;color:var(--muted)" id="tax-gross"></div>
-      <div class="s-val green" id="tax-net">—</div>
-    </div>
   </div>
 </div>
 
 <div class="tabs">
   <button class="tab active" id="tab-month-current" onclick="setFilter('month',this)">החודש</button>
-  <button class="tab" onclick="setFilter('unpaid',this)">לשלוח דרישה</button>
-  <button class="tab" onclick="setFilter('months',this)">חודשים קודמים</button>
-  <button class="tab" onclick="setFilter('graph',this)">📊 גרף</button>
-  <button class="tab" onclick="setFilter('invoice',this)">נשלחה דרישה</button>
+  <button class="tab" onclick="setFilter('inprogress',this)">בתהליך</button>
+  <button class="tab" onclick="setFilter('pending',this)">לגבייה</button>
   <button class="tab" onclick="setFilter('done',this)">שולם</button>
+  <button class="tab" onclick="setFilter('all',this)">הכל</button>
 </div>
 
 
@@ -649,6 +645,8 @@ function getFiltered(){
     if(filter==='unpaid' && (p.pay!=='טרם שולם' || p.sp!=='בוצע')) return false;
     if(filter==='invoice' && p.pay!=='נשלחה דרישת תשלום') return false;
     if(filter==='done' && p.pay!=='שולם במלואו') return false;
+    if(filter==='inprogress' && p.sp!=='בתהליך') return false;
+    if(filter==='pending' && p.pay==='שולם במלואו') return false;
     if(q && !p.name?.toLowerCase().includes(q) && !p.client?.toLowerCase().includes(q) && !p.cat?.toLowerCase().includes(q)) return false;
     return true;
   });
@@ -793,7 +791,7 @@ function cardHtml(p, freq){
       <button class="dup-btn" onclick="dupProject('${p.id}',event)" title="שכפל פרויקט">📋</button>
     </div>
     <div class="card-row2">
-      <div class="badges">${catBadge(p.cat)}${spBadgeQ(p.sp||'טרם החל', p.id)}${payBadgeQ(p.pay||'טרם שולם', p.id)}${ageChip}${efBadge}</div>
+      <div class="badges">${catBadge(p.cat)}${(p.sp||'טרם החל')!=='בוצע'?spBadgeQ(p.sp||'טרם החל', p.id):''}${payBadgeQ(p.pay||'טרם שולם', p.id)}${ageChip}${efBadge}</div>
       ${p.client?`<span class="card-meta"><span class="client-name-link" onclick="event.stopPropagation();showClient('${esc(p.client)}')">${p.client}</span>${p.exec?' · '+fmtDate(p.exec):''}</span>`:(p.exec?`<span class="card-meta">${fmtDate(p.exec)}</span>`:'')}
     </div>
     ${p.notes?`<div class="card-notes" style="display:flex;align-items:flex-start;gap:4px"><span style="flex:1">💬 ${p.notes}</span><button class="note-edit-btn" onclick="openNoteEditor('${p.id}',event)">✏️</button></div>`:`<button class="note-edit-btn" style="margin-top:4px" onclick="openNoteEditor('${p.id}',event)">+ הערה</button>`}
@@ -806,65 +804,13 @@ function render(){
   document.getElementById('month-label').textContent = months[now.getMonth()]+' '+now.getFullYear();
   const tabEl=document.getElementById('tab-month-current'); if(tabEl) tabEl.textContent='חודש '+months[now.getMonth()];
 
-  // ── Context-aware summary cards
-  const sumAmt = d => d.reduce((s,p)=>s+(Number(p.amount)||0), 0);
-  const unpaidOf = d => d.filter(p=>p.pay!=='שולם במלואו');
-  const inCurMonth = d => d.filter(p=>p.exec&&monthKey(new Date(p.exec+'T12:00:00'))===curMK);
-  const curMonthData = inCurMonth(data);
-
-  let sumVal, sum2Val, pendingVal, countVal;
-  let sumLabel = 'סה״כ ₪', sum2Label = 'החודש ₪';
-
-  if(filter==='month'){
-    sumLabel='החודש ₪'; sum2Label='שולם ₪';
-    sumVal=sumAmt(curMonthData);
-    sum2Val=sumAmt(curMonthData.filter(p=>p.pay==='שולם במלואו'));
-    pendingVal=sumAmt(unpaidOf(curMonthData));
-    countVal=curMonthData.length;
-  } else if(filter==='unpaid'){
-    const f=data.filter(p=>p.pay==='טרם שולם');
-    sumLabel='לשלוח דרישה'; sum2Label='החודש ₪';
-    sumVal=sumAmt(f);
-    sum2Val=sumAmt(inCurMonth(f));
-    pendingVal=sumAmt(f);
-    countVal=f.length;
-  } else if(filter==='invoice'){
-    const f=data.filter(p=>p.pay==='נשלחה דרישת תשלום');
-    sumLabel='נשלחה דרישה'; sum2Label='החודש ₪';
-    sumVal=sumAmt(f);
-    sum2Val=sumAmt(inCurMonth(f));
-    pendingVal=sumAmt(f);
-    countVal=f.length;
-  } else if(filter==='done'){
-    const f=data.filter(p=>p.pay==='שולם במלואו');
-    sumLabel='שולם ₪'; sum2Label='החודש ₪';
-    sumVal=sumAmt(f);
-    sum2Val=sumAmt(inCurMonth(f));
-    pendingVal=0;
-    countVal=f.length;
-  } else {
-    // הכל / חודשים קודמים / גרף — global
-    sumVal=sumAmt(data);
-    sum2Val=sumAmt(curMonthData);
-    pendingVal=sumAmt(unpaidOf(data));
-    countVal=data.length;
-  }
-
-  document.getElementById('s-label-1').textContent = sumLabel;
-  document.getElementById('s-label-2').textContent = sum2Label;
-  document.getElementById('c-sum').textContent = fmt(sumVal)||'₪0';
-  document.getElementById('c-month').textContent = fmt(sum2Val)||'₪0';
-  document.getElementById('c-pending').textContent = fmt(pendingVal)||'₪0';
-  document.getElementById('c-total').textContent = countVal;
-  const bm=getBestMonth();
-  document.getElementById('best-month-label').textContent=bm?bm.label:'—';
-  document.getElementById('best-month-val').textContent=bm?fmt(bm.amount):'—';
-  // Tax estimate
-  const yearItems=data.filter(p=>{if(!p.exec)return false;return new Date(p.exec+'T12:00:00').getFullYear()===now.getFullYear();});
-  const yGross=yearItems.reduce((s,p)=>s+(Number(p.amount)||0),0);
-  const yNet=Math.round(yGross*0.65);
-  document.getElementById('tax-gross').textContent=yGross?'ברוטו: '+fmt(yGross):'';
-  document.getElementById('tax-net').textContent=yNet?fmt(yNet):'—';
+  // ── Monthly summary (stable — always the current month, regardless of filter)
+  const curMonthData = data.filter(p=>p.exec&&monthKey(new Date(p.exec+'T12:00:00'))===curMK);
+  const monthTotal = curMonthData.reduce((s,p)=>s+(Number(p.amount)||0),0);
+  const monthPending = curMonthData.filter(p=>p.pay!=='שולם במלואו').reduce((s,p)=>s+(Number(p.amount)||0),0);
+  const _setTxt=(id,v)=>{const el=document.getElementById(id); if(el) el.textContent=v;};
+  _setTxt('c-month-total', fmt(monthTotal)||'₪0');
+  _setTxt('c-pending', fmt(monthPending)||'₪0');
 
   const clients = [...new Set(data.map(p=>p.client).filter(Boolean))];
   document.getElementById('dl-clients').innerHTML = clients.map(c=>`<option value="${c}">`).join('');
@@ -887,7 +833,7 @@ function render(){
   list.innerHTML = filtered.map(p=>cardHtml(p,freq)).join('');
   attachSwipes();
   attachLongPress();
-  if(filter==='month'||filter==='unpaid') maybeShowSwipeHint();
+  if(filter==='month'||filter==='pending') maybeShowSwipeHint();
 }
 
 function setFilter(f, btn){
@@ -895,6 +841,13 @@ function setFilter(f, btn){
   filter = f;
   document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
   btn.classList.add('active');
+  render();
+}
+function openView(v){
+  if(v==='months') openMonths = new Set([monthKey(new Date())]);
+  filter = v;
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  closeQuickMenu();
   render();
 }
 
@@ -1375,6 +1328,43 @@ function showCardActions(pid){
   menu.style.top=''; menu.style.left='';
 }
 
+// ── MAIN MENU (header ⋯) — yearly summary + views + export
+function showMainMenu(e){
+  if(e&&e.stopPropagation) e.stopPropagation();
+  const menu=document.getElementById('quick-menu');
+  menu._opts=null;
+  const bm=getBestMonth();
+  const now=new Date();
+  const yearItems=data.filter(p=>p.exec&&new Date(p.exec+'T12:00:00').getFullYear()===now.getFullYear());
+  const yGross=yearItems.reduce((s,p)=>s+(Number(p.amount)||0),0);
+  const yNet=Math.round(yGross*0.65);
+  const allPending=data.filter(p=>p.pay!=='שולם במלואו').reduce((s,p)=>s+(Number(p.amount)||0),0);
+  const row=(label,val,color)=>'<div class="qm-item" style="justify-content:space-between;cursor:default"><span>'+label+'</span><span style="font-weight:700;direction:ltr'+(color?';color:'+color:'')+'">'+val+'</span></div>';
+  menu.innerHTML=
+    '<div class="qm-title">סיכום שנתי</div>'+
+    row('🏆 חודש הכי טוב', bm?bm.label+' · '+fmt(bm.amount):'—','var(--bordeaux)')+
+    row('💰 נטו משוער (אחרי ~35%)', yNet?fmt(yNet):'—','var(--green)')+
+    row('📊 ברוטו השנה', yGross?fmt(yGross):'—')+
+    row('🧾 סה״כ לגבייה', allPending?fmt(allPending):'₪0','var(--bordeaux)')+
+    '<div class="qm-title" style="margin-top:4px">תצוגות ופעולות</div>'+
+    '<button class="qm-item" onclick="_pickQm(\'graph\')"><span>📈</span><span>גרף הכנסות</span></button>'+
+    '<button class="qm-item" onclick="_pickQm(\'months\')"><span>📅</span><span>חודשים קודמים</span></button>'+
+    '<button class="qm-item" onclick="_pickQm(\'export\')"><span>⬇️</span><span>ייצוא גיבוי</span></button>'+
+    '<button class="qm-item" onclick="_pickQm(\'bank\')" style="color:var(--bordeaux)"><span>📥</span><span>ייבוא דף בנק</span></button>';
+  menu._onPick=opt=>{
+    if(opt==='graph') openView('graph');
+    else if(opt==='months') openView('months');
+    else if(opt==='export'){ closeQuickMenu(); exportData(); }
+    else if(opt==='bank'){ closeQuickMenu(); openBankImport(); }
+  };
+  let ov=document.getElementById('qm-ov');
+  if(!ov){ov=document.createElement('div');ov.id='qm-ov';ov.className='qm-overlay';ov.onclick=closeQuickMenu;document.body.appendChild(ov);}
+  ov.style.display='block';
+  menu.classList.add('sheet');
+  menu.style.display='block';
+  menu.style.top=''; menu.style.left='';
+}
+
 // ── BOOT
 if(sessionStorage.getItem('crm_auth')==='1'){
   initData();
@@ -1424,5 +1414,204 @@ if(sessionStorage.getItem('crm_auth')==='1'){
   </div>
 </div>
 
+<!-- BANK IMPORT OVERLAY -->
+<div class="overlay" id="bank-overlay" onclick="if(event.target===this)closeBankImport()">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <div class="modal-title">📥 ייבוא דף בנק</div>
+
+    <!-- Step 1: upload -->
+    <div id="bi-step1">
+      <p class="bi-tip">הורידי Excel מאתר הבנק ← העלי כאן ← המערכת תתאים לפרויקטים</p>
+      <div class="bi-drop" id="bi-drop"
+           onclick="document.getElementById('bi-file').click()"
+           ondragover="event.preventDefault();this.classList.add('drag')"
+           ondragleave="this.classList.remove('drag')"
+           ondrop="this.classList.remove('drag');handleBankFile(event.dataTransfer.files[0])">
+        <div class="bi-drop-icon">📄</div>
+        <div class="bi-drop-text">גרורי קובץ Excel מהבנק</div>
+        <div class="bi-drop-sub">או לחצי לבחירה — xls / xlsx</div>
+      </div>
+      <input type="file" id="bi-file" accept=".xlsx,.xls" style="display:none"
+             onchange="handleBankFile(this.files[0])">
+      <button class="bi-back" onclick="closeBankImport()">ביטול</button>
+    </div>
+
+    <!-- Step 2: results -->
+    <div id="bi-step2" style="display:none;overflow-y:auto;max-height:65vh">
+      <div id="bi-content"></div>
+      <button class="bi-confirm-btn" onclick="confirmBankPaid()">✓ סמני מסומנות כ"שולם במלואו"</button>
+      <button class="bi-back" onclick="document.getElementById('bi-step1').style.display='';document.getElementById('bi-step2').style.display='none'">← חזרה להעלאה</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─── BANK IMPORT ───
+let _bankMatches=[];
+
+function openBankImport(){
+  _bankMatches=[];
+  document.getElementById('bi-step1').style.display='';
+  document.getElementById('bi-step2').style.display='none';
+  document.getElementById('bi-file').value='';
+  document.getElementById('bank-overlay').classList.add('open');
+}
+function closeBankImport(){
+  document.getElementById('bank-overlay').classList.remove('open');
+}
+
+function handleBankFile(f){
+  if(!f) return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const wb=XLSX.read(new Uint8Array(e.target.result),{type:'array'});
+      const ws=wb.Sheets[wb.SheetNames[0]];
+      const rows=XLSX.utils.sheet_to_json(ws,{header:1,defval:''});
+      processBankRows(rows);
+    }catch(err){
+      alert('שגיאה בקריאת הקובץ. וודאי שזה קובץ Excel (.xlsx / .xls) מהבנק.');
+    }
+  };
+  reader.readAsArrayBuffer(f);
+}
+
+function processBankRows(rows){
+  // Find the header row that contains "זכות"
+  let hRow=-1,colDate=-1,colDesc=-1,colCredit=-1;
+  for(let r=0;r<Math.min(rows.length,20);r++){
+    const row=rows[r];
+    for(let c=0;c<row.length;c++){
+      const v=String(row[c]||'').trim();
+      if(v==='זכות'){hRow=r;colCredit=c;}
+      if(v==='תיאור'||v==='description') colDesc=c;
+      if((v==='תאריך'||v==='date') && colDate===-1) colDate=c;
+    }
+    if(hRow===r) break;
+  }
+  if(hRow===-1||colCredit===-1){
+    alert('לא זוהה פורמט בנק. וודאי שהקובץ יצואני Excel מאתר הבנק (עמודה "זכות").');
+    return;
+  }
+
+  const credits=[];
+  for(let r=hRow+1;r<rows.length;r++){
+    const row=rows[r];
+    if(!row||!row.length) continue;
+    const raw=String(row[colCredit]||'').replace(/[,₪\s]/g,'');
+    const amt=parseFloat(raw);
+    if(!amt||amt<=0) continue;
+    const desc=colDesc>=0?String(row[colDesc]||'').trim():'';
+    const dt=colDate>=0?String(row[colDate]||'').trim():'';
+    credits.push({date:dt,desc,amt});
+  }
+  if(!credits.length){alert('לא נמצאו הכנסות (זכות) בקובץ.');return;}
+
+  // Match credits → pending projects
+  const pending=data.filter(p=>p.pay==='נשלחה דרישת תשלום');
+  const VAT=1.18;
+  const TOL=3;
+  const usedIds=new Set();
+
+  _bankMatches=credits.map(entry=>{
+    let best=null,bestScore=0;
+    for(const p of pending){
+      if(usedIds.has(p.id)) continue;
+      const pa=Number(p.amount)||0;
+      if(!pa) continue;
+      const exactMatch=Math.abs(entry.amt-pa)<TOL;
+      const vatMatch=Math.abs(entry.amt-pa*VAT)<TOL;
+      if(!exactMatch&&!vatMatch) continue;
+      const payee=(entry.desc||'').toLowerCase();
+      const client=(p.client||p.name||'').toLowerCase();
+      const words=client.split(/[\s\-\/]+/).filter(w=>w.length>1);
+      const nameHit=words.some(w=>payee.includes(w));
+      const score=(exactMatch?8:6)+(vatMatch?3:0)+(nameHit?5:0);
+      if(score>bestScore){bestScore=score;best={project:p,vatMatch,nameHit};}
+    }
+    if(best) usedIds.add(best.project.id);
+    return {entry,match:best,checked:!!best};
+  });
+
+  showBankResults();
+}
+
+function showBankResults(){
+  const matched=_bankMatches.filter(m=>m.match);
+  const unmatchedCredits=_bankMatches.filter(m=>!m.match&&m.entry.amt>=500);
+  const pendingNoBank=data.filter(p=>
+    p.pay==='נשלחה דרישת תשלום'&&
+    !_bankMatches.find(m=>m.match&&m.match.project.id===p.id)
+  );
+
+  let html='';
+
+  if(matched.length){
+    html+='<div class="bi-section-title">✅ התאמות — לאשר ולסמן שולם</div>';
+    matched.forEach((m,i)=>{
+      const p=m.match.project;
+      const pa=Number(p.amount);
+      html+=`<div class="bi-row">
+        <input type="checkbox" class="bi-cb" id="bi-${i}" ${m.checked?'checked':''}>
+        <label for="bi-${i}">
+          <div class="bi-proj">${p.name}
+            ${p.client?`<span class="bi-client">${p.client}</span>`:''}
+            <span class="bi-amt">₪${pa.toLocaleString()}</span>
+          </div>
+          <div class="bi-bank">📅 ${m.entry.date} · ₪${m.entry.amt.toLocaleString()} מ${m.entry.desc.substring(0,24)}${m.match.vatMatch?' (כולל מע״מ)':''}</div>
+        </label>
+      </div>`;
+    });
+  } else {
+    html+='<div class="bi-section-title">לא נמצאו התאמות אוטומטיות</div>';
+  }
+
+  if(pendingNoBank.length){
+    html+='<div class="bi-section-title" style="margin-top:10px">⏳ לא נמצא תשלום בבנק</div>';
+    pendingNoBank.forEach(p=>{
+      html+=`<div class="bi-row bi-row-missing">
+        <div class="bi-proj">${p.name}
+          ${p.client?`<span class="bi-client">${p.client}</span>`:''}
+          <span class="bi-amt" style="color:var(--amber)">₪${Number(p.amount).toLocaleString()}</span>
+        </div>
+      </div>`;
+    });
+  }
+
+  if(unmatchedCredits.length){
+    html+='<div class="bi-section-title" style="margin-top:10px">❓ כניסות בנק ללא פרויקט</div>';
+    unmatchedCredits.forEach(m=>{
+      html+=`<div class="bi-row bi-row-missing">
+        <div class="bi-proj">${m.entry.desc.substring(0,30)}
+          <span class="bi-amt" style="color:var(--muted)">₪${m.entry.amt.toLocaleString()}</span>
+        </div>
+        <div class="bi-bank">${m.entry.date}</div>
+      </div>`;
+    });
+  }
+
+  document.getElementById('bi-content').innerHTML=html;
+  document.getElementById('bi-step1').style.display='none';
+  document.getElementById('bi-step2').style.display='';
+}
+
+async function confirmBankPaid(){
+  const matched=_bankMatches.filter(m=>m.match);
+  let count=0;
+  for(let i=0;i<matched.length;i++){
+    const cb=document.getElementById('bi-'+i);
+    if(cb&&cb.checked){
+      quickPayStatus(matched[i].match.project.id,'שולם במלואו');
+      count++;
+      await new Promise(r=>setTimeout(r,80));
+    }
+  }
+  closeBankImport();
+  if(count) showToast('✓ '+count+' פרויקטים עודכנו כשולם במלואו');
+}
+</script>
+
 </body>
 </html>
+
