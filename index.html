@@ -79,10 +79,10 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 .tab:active{opacity:.8}
 
 /* CARDS */
-.list{padding:0 18px 100px;display:flex;flex-direction:column;gap:6px}
-.card{background:var(--white);border:1px solid var(--border);border-radius:var(--rs);padding:10px 13px;cursor:pointer;transition:transform .1s}
+.list{padding:0 18px 100px;display:flex;flex-direction:column;gap:3px}
+.card{background:var(--white);border:1px solid var(--border);border-radius:var(--rs);padding:7px 12px;cursor:pointer;transition:transform .1s}
 .card:active{transform:scale(.98)}
-.card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:5px}
+.card-top{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px}
 .card-name{font-size:14px;font-weight:600;color:var(--text);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .card-client{font-size:11px;color:var(--muted)}
 .card-amount{font-size:15px;font-weight:700;white-space:nowrap;direction:ltr;color:var(--text);flex-shrink:0}
@@ -98,7 +98,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 .bbx{background:#F5DCEA;color:#7D2442;border:1px solid rgba(125,36,66,.18)}
 .bpu{background:#E8E0F5;color:#5A3A90;border:1px solid rgba(90,58,144,.18)}
 .card-meta{font-size:11px;color:var(--muted);margin-right:auto}
-.card-notes{font-size:11px;color:var(--muted);margin-top:5px;line-height:1.4;border-top:1px solid var(--border);padding-top:5px}
+.card-notes{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.4;border-top:1px solid var(--border);padding-top:3px}
 
 /* BOTTOM BAR */
 .bar{position:fixed;bottom:0;left:0;right:0;background:var(--text);color:var(--bg);padding:13px 18px;display:flex;justify-content:space-between;align-items:center;z-index:20}
@@ -138,7 +138,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 .search-input:focus{border-color:var(--text);background:var(--white)}
 
 /* MONTHLY VIEW */
-.month-group{margin-bottom:8px}
+.month-group{margin-bottom:5px}
 .month-header{background:var(--white);border:1px solid var(--border);border-radius:var(--r);padding:14px 15px;cursor:pointer;user-select:none;-webkit-user-select:none}
 .month-header.current{background:var(--bordeaux);border-color:var(--bordeaux);color:#fff}
 .month-header.open{border-radius:var(--r) var(--r) 0 0;border-bottom-color:transparent}
@@ -158,7 +158,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
 .month-header:not(.current) .month-meta{color:var(--muted)}
 .month-header:not(.current) .month-title,.month-header:not(.current) .month-sum{color:var(--text)}
 .month-header:not(.current) .month-legend-item{color:var(--muted)}
-.month-cards{border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);padding:8px;display:flex;flex-direction:column;gap:6px;background:var(--bg)}
+.month-cards{border:1px solid var(--border);border-top:none;border-radius:0 0 var(--r) var(--r);padding:6px;display:flex;flex-direction:column;gap:3px;background:var(--bg)}
 .month-cards .card{border-radius:var(--rs)}
 
 /* GRAPH */
