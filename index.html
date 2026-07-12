@@ -274,7 +274,16 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Helvetica,Arial,san
   body{max-width:540px;margin:0 auto;box-shadow:0 0 0 1px var(--border),0 0 40px rgba(0,0,0,.07)}
   .bar{left:50%;right:auto;width:540px;transform:translateX(-50%)}
   .fab{left:calc(50% - 252px)}
-  #quick-menu.sheet{left:50%!important;right:auto!important;width:540px;transform:translateX(-50%);border-radius:20px 20px 0 0}
+  #quick-menu.right-panel{
+    top:0!important;bottom:0;
+    right:calc((100vw - 540px)/2)!important;
+    left:auto!important;
+    width:260px;min-width:unset;
+    border-radius:0;border:none;border-left:1px solid var(--border);
+    overflow-y:auto;padding:20px 0 32px;
+    box-shadow:-4px 0 24px rgba(0,0,0,.1);
+    transform:none
+  }
 }
 </style>
 </head>
@@ -1212,7 +1221,7 @@ function pickPay(status) {
 }
 function closeQuickMenu() {
   const m = document.getElementById('quick-menu');
-  if (m) { m.style.display = 'none'; m.classList.remove('sheet'); }
+  if (m) { m.style.display = 'none'; m.classList.remove('sheet','right-panel'); }
   const ov = document.getElementById('qm-ov');
   if (ov) ov.style.display = 'none';
   _qmPid = null;
@@ -1367,9 +1376,13 @@ function showMainMenu(e){
   let ov=document.getElementById('qm-ov');
   if(!ov){ov=document.createElement('div');ov.id='qm-ov';ov.className='qm-overlay';ov.onclick=closeQuickMenu;document.body.appendChild(ov);}
   ov.style.display='block';
-  menu.classList.add('sheet');
   menu.style.display='block';
   menu.style.top=''; menu.style.left='';
+  if(window.innerWidth>580){
+    menu.classList.add('right-panel');
+  } else {
+    menu.classList.add('sheet');
+  }
 }
 
 // ── BOOT
