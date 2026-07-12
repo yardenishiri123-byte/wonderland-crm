@@ -814,6 +814,67 @@ function cardHtml(p, freq){
   </div></div>`;
 }
 
+function renderRecent3(){
+  document.getElementById('search-wrap').style.display='';
+  const q=getQ(), now=new Date(), currentKey=monthKey(now);
+  const recentKeys=new Set();
+  for(let i=0;i<3;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    recentKeys.add(monthKey(d));
+  }
+  const items=data.filter(p=>{
+    if(!p.exec) return false;
+    if(!recentKeys.has(monthKey(new Date(p.exec+'T12:00:00')))) return false;
+    if(q&&!p.name?.toLowerCase().includes(q)&&!p.client?.toLowerCase().includes(q)&&!p.cat?.toLowerCase().includes(q)) return false;
+    return true;
+  });
+  const groups={};
+  items.forEach(p=>{
+    const d=new Date(p.exec+'T12:00:00'), key=monthKey(d);
+    if(!groups[key]) groups[key]={key,year:d.getFullYear(),month:d.getMonth(),items:[]};
+    groups[key].items.push(p);
+  });
+  const sorted=Object.values(groups).sort((a,b)=>a.year!==b.year?b.year-a.year:b.month-a.month);
+  openMonths.add(currentKey);
+  document.getElementById('bar-sum').textContent=fmt(items.reduce((s,p)=>s+(Number(p.amount)||0),0))||'₪0';
+  document.getElementById('bar-count').textContent=items.length+' פרויקטים';
+  const freq=clientFreqMap();
+  const list=document.getElementById('list');
+  if(!sorted.length){list.innerHTML=`<div class="empty"><div class="empty-icon">📅</div><div class="empty-title">אין פרויקטים</div></div>`;return;}
+  list.innerHTML=sorted.map(g=>{
+    const isOpen=openMonths.has(g.key), isCur=g.key===currentKey;
+    const total=g.items.reduce((s,p)=>s+(Number(p.amount)||0),0);
+    const paid=g.items.filter(p=>p.pay==='שולם במלואו').reduce((s,p)=>s+(Number(p.amount)||0),0);
+    const invoice=g.items.filter(p=>p.pay==='נשלחה דרישת תשלום').reduce((s,p)=>s+(Number(p.amount)||0),0);
+    const unpaid=Math.max(0,total-paid-invoice);
+    const pp=total?(paid/total*100):0, ip=total?(invoice/total*100):0, up=total?(unpaid/total*100):0;
+    const w=s=>`rgba(255,255,255,${s})`, gc=v=>isCur?w(v):`var(${v})`;
+    const cardsHtml=g.items.slice().sort((a,b)=>(a.exec||'')>(b.exec||'')?1:-1).map(p=>cardHtml(p,freq)).join('');
+    return `<div class="month-group">
+      <div class="month-header${isCur?' current':''}${isOpen?' open':''}" onclick="toggleMonth('${g.key}')">
+        <div class="month-row1"><div class="month-title">${months[g.month]} ${g.year}</div>
+          <div class="month-right"><div class="month-sum">${fmt(total)}</div><span class="month-chevron">▼</span></div>
+        </div>
+        <div class="month-meta">${g.items.length} פרויקטים</div>
+        <div class="month-bar">
+          ${pp>0?`<div class="month-bar-seg" style="width:${pp}%;background:${gc('--green')}"></div>`:''}
+          ${ip>0?`<div class="month-bar-seg" style="width:${ip}%;background:${gc('--blue')}"></div>`:''}
+          ${up>0?`<div class="month-bar-seg" style="width:${up}%;background:${gc('--red')}"></div>`:''}
+        </div>
+        <div class="month-legend">
+          ${paid>0?`<span class="month-legend-item"><span class="month-legend-dot" style="background:${gc('--green')}"></span>${fmt(paid)} שולם</span>`:''}
+          ${invoice>0?`<span class="month-legend-item"><span class="month-legend-dot" style="background:${gc('--blue')}"></span>${fmt(invoice)} דרישה נשלחה</span>`:''}
+          ${unpaid>0?`<span class="month-legend-item"><span class="month-legend-dot" style="background:${gc('--red')}"></span>${fmt(unpaid)} לשלוח דרישה</span>`:''}
+        </div>
+      </div>
+      ${isOpen?`<div class="month-cards">${cardsHtml}</div>`:''}
+    </div>`;
+  }).join('');
+  attachSwipes();
+  attachLongPress();
+  maybeShowSwipeHint();
+}
+
 function render(){
   const now = new Date();
   const curMK = monthKey(now);
@@ -833,6 +894,7 @@ function render(){
 
   if(filter==='months'){ renderMonths(); return; }
   if(filter==='graph'){ renderGraph(); return; }
+  if(filter==='month'){ renderRecent3(); return; }
 
   document.getElementById('search-wrap').style.display = '';
   const freq = clientFreqMap();
